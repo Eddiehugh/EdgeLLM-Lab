@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edgellm-lab"
+version = "0.1.0"
+description = "A modular personal LLM learning and experimentation framework."
+requires-python = ">=3.9"
+dependencies = [
+  "torch",
+  "PyYAML",
+]
+
+[project.scripts]
+edgellm = "cli:main"
+
+[tool.setuptools]
+py-modules = ["cli", "main"]
+packages = [
+  "backend",
+  "benchmark",
+  "compression",
+  "compression.quantization",
+  "core",
+  "data",
+  "experiments",
+  "integrations",
+  "integrations.llama_cpp",
+  "integrations.mobilellm",
+  "integrations.nanogpt",
+  "integrations.smollm",
+  "integrations.tinyllama",
+  "inference",
+  "models",
+  "modules",
+  "training",
+]

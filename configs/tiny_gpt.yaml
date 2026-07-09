@@ -1,0 +1,49 @@
+model:
+  name: tiny_gpt
+  vocab_size: 32000
+  hidden_size: 256
+  num_layers: 4
+  num_heads: 4
+  block_type: transformer
+  max_position_embeddings: 512
+  attention_type: mha
+  norm_type: layernorm
+  mlp_type: gelu
+  intermediate_size: 1024
+  tie_word_embeddings: false
+
+data:
+  tokenizer_type: char
+
+loss:
+  type: causal_lm
+  label_smoothing: 0.0
+
+training:
+  batch_size: 8
+  learning_rate: 0.0003
+  max_steps: 1000
+  gradient_accumulation_steps: 1
+  eval_interval: 100
+  save_interval: 500
+  optimizer:
+    type: adamw
+    betas: [0.9, 0.95]
+    weight_decay: 0.1
+  scheduler:
+    type: cosine
+    min_lr_ratio: 0.1
+
+inference:
+  backend: torch
+  sampler:
+    type: top_p
+    p: 0.95
+  max_new_tokens: 128
+  temperature: 0.8
+  top_k: 50
+  top_p: 0.95
+
+compression:
+  quantizer:
+    type: int8

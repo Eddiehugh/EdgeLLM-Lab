@@ -1,0 +1,7 @@
+# Keep this workspace independent from the main codebase.
+*
+!.gitignore
+!README.md
+!manifests/
+!manifests/README.md
+!manifests/*.yaml

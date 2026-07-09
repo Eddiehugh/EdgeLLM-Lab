@@ -1,0 +1,1 @@
+"""Simplified AWQ placeholder."""

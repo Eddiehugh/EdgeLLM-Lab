@@ -1,0 +1,44 @@
+experiment:
+  name: smoke-test
+  output_dir: runs
+
+runtime:
+  device: cpu
+  seed: 42
+
+model:
+  name: tiny_gpt
+  vocab_size: 256
+  hidden_size: 32
+  num_layers: 2
+  num_heads: 4
+  max_position_embeddings: 16
+  attention_type: mha
+  norm_type: rmsnorm
+  mlp_type: swiglu
+
+data:
+  tokenizer_type: char
+  text: |
+    EdgeLLM Lab modular smoke test.
+    EdgeLLM Lab modular smoke test.
+    EdgeLLM Lab modular smoke test.
+    EdgeLLM Lab modular smoke test.
+    EdgeLLM Lab modular smoke test.
+    EdgeLLM Lab modular smoke test.
+    EdgeLLM Lab modular smoke test.
+    EdgeLLM Lab modular smoke test.
+  block_size: 16
+
+loss:
+  type: causal_lm
+
+training:
+  batch_size: 2
+  learning_rate: 0.001
+  max_steps: 2
+  optimizer:
+    type: adamw
+    weight_decay: 0.0
+  scheduler:
+    type: constant

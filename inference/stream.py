@@ -1,0 +1,1 @@
+"""Streaming generation placeholder."""
