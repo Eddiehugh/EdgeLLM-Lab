@@ -7,7 +7,7 @@ import torch.nn as nn
 from modules.mlp.registry import MLP_REGISTRY
 
 
-@MLP_REGISTRY.register("gelu")
+@MLP_REGISTRY.register("gelu", capabilities=("feed_forward", "gelu"))
 class GELUMLP(nn.Module):
     """Standard GPT-style MLP."""
 

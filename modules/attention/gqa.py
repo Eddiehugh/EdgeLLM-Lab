@@ -9,7 +9,10 @@ from modules.attention.base import apply_attention, merge_heads, repeat_kv
 from modules.attention.registry import ATTENTION_REGISTRY
 
 
-@ATTENTION_REGISTRY.register("gqa")
+@ATTENTION_REGISTRY.register(
+    "gqa",
+    capabilities=("self_attention", "dense", "grouped_kv"),
+)
 class GroupedQueryAttention(nn.Module):
     """Grouped-query attention with fewer KV heads than Q heads."""
 

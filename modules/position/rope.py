@@ -7,7 +7,10 @@ import torch
 from modules.position.registry import POSITION_ENCODING_REGISTRY
 
 
-@POSITION_ENCODING_REGISTRY.register("rope")
+@POSITION_ENCODING_REGISTRY.register(
+    "rope",
+    capabilities=("rotary", "query_key_transform"),
+)
 class RotaryPositionEmbedding:
     """Minimal RoPE implementation for query/key tensors."""
 

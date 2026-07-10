@@ -6,14 +6,19 @@ from typing import Any
 
 import torch
 
-from core import count_parameters, model_size_bytes
+from core import Maturity, ProjectLevel, count_parameters, model_size_bytes
 from core.registry import Registry, build_from_config
 
 
 BENCHMARK_REGISTRY = Registry("benchmark")
 
 
-@BENCHMARK_REGISTRY.register("model_stats")
+@BENCHMARK_REGISTRY.register(
+    "model_stats",
+    level=ProjectLevel.EXPERIMENT,
+    maturity=Maturity.VERIFIED,
+    capabilities=("model_size", "parameter_count"),
+)
 class ModelStatsBenchmark:
     """Collect architecture-independent model size metrics."""
 

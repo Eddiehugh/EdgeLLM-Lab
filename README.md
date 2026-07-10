@@ -27,14 +27,14 @@ Learn one technique -> implement one module -> run one experiment -> write one r
 
 ```text
 EdgeLLM-Lab/
-├── core/                    # Registry, config loading, extension loading, runtime utilities
+├── core/                    # Registry, component specs, config, provenance, runtime utilities
 ├── modules/                 # Level 1: Algorithm packages; each technique has its own file
 ├── models/                  # Level 1: TinyGPT, LLaMA-like, DeepSeek-like, future model families
 ├── training/                # Level 1/2: Losses, optimizers, schedulers, training entry points
 ├── inference/               # Level 1/2: Samplers, KV cache, generation engine
 ├── compression/             # Level 1/2: Quantization, pruning, low-rank compression
 ├── data/                    # Tokenizer, dataset, dataloader
-├── experiments/             # Level 2: Config-driven experiment runner and run artifacts
+├── experiments/             # Level 2: Registered stage pipeline, context, and run artifacts
 ├── benchmark/               # Level 2: Benchmark registries and metric collectors
 ├── backend/                 # Level 3: Runtime boundaries such as Torch, llama.cpp, ONNX, MLC
 ├── integrations/            # Level 3: Thin adapters for external open-source projects
@@ -96,7 +96,7 @@ Current replaceable components:
 - `loss`: causal LM cross entropy, z-loss, distillation.
 - `sampler`: greedy, multinomial, top-k, top-p.
 - `kv_cache`: append-only cache now; later paged, sliding, quantized cache.
-- `quantizer`: INT8 now; later INT4, AWQ, GPTQ, KV quantization.
+- `quantizer`: experimental tensor-level INT8 now; packed INT4, AWQ, GPTQ, and KV quantization are planned.
 
 Example: add a custom attention implementation.
 
@@ -116,6 +116,14 @@ model:
   attention_type: my_attention
 ```
 
+Registrations carry Level, maturity, capabilities, requirements, aliases, and
+source metadata. Inspect them without constructing a model:
+
+```bash
+python3 -m cli list-components --details
+python3 -m cli component-info backend llama_cpp
+```
+
 ## Level 2: Experiment by Comparing
 
 This level makes different algorithms comparable under the same framework.
@@ -124,11 +132,15 @@ Experiment flow:
 
 ```text
 config.yaml
-  -> build tokenizer / dataset / model / loss / optimizer / scheduler
-  -> train or evaluate
-  -> collect metrics
+  -> registered pipeline stages
+  -> build / train / evaluate / compress / export / benchmark
+  -> collect metrics and provenance
   -> write run artifacts
 ```
+
+The default pipeline preserves the original training behavior. A custom
+extension can register a new `ExperimentStage` and place it in
+`pipeline.stages`; `ExperimentRunner` does not need to change.
 
 Each run writes:
 
@@ -136,8 +148,12 @@ Each run writes:
 runs/<run-id>/
 ├── config.yaml
 ├── metrics.json
+├── manifest.json
 └── report.md
 ```
+
+`manifest.json` records status, environment, Git revision, selected component
+specifications, stage timings, errors, and artifact paths.
 
 Quick smoke test:
 
@@ -149,6 +165,13 @@ Run from config:
 
 ```bash
 python3 -m cli train -c configs/smoke.yaml
+```
+
+Validate and resolve a config without executing it:
+
+```bash
+python3 -m cli validate-config -c configs/smoke.yaml
+python3 -m cli validate-config -c configs/smoke.yaml --resolved
 ```
 
 List registered components:
@@ -272,4 +295,5 @@ python3 -m cli train -c configs/smoke.yaml
 ## Design Documents
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [Extension Guide](docs/EXTENDING.md)
 - [Open Source Integration Workflow](docs/OPEN_SOURCE_INTEGRATION.md)

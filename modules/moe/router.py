@@ -8,7 +8,7 @@ import torch.nn as nn
 from modules.moe.registry import MOE_REGISTRY
 
 
-@MOE_REGISTRY.register("topk_router")
+@MOE_REGISTRY.register("topk_router", capabilities=("routing", "top_k"))
 class TopKRouter(nn.Module):
     """Top-k expert router used as a lightweight MoE building block."""
 

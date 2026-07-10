@@ -11,7 +11,9 @@ QUANTIZER_REGISTRY = Registry("quantizer")
 _BUILTINS_LOADED = False
 
 
-def _load_builtin_quantizers() -> None:
+def load_builtin_quantizers() -> None:
+    """Load built-in quantizer registrations without constructing one."""
+
     global _BUILTINS_LOADED
     if _BUILTINS_LOADED:
         return
@@ -22,7 +24,7 @@ def _load_builtin_quantizers() -> None:
 
 def build_quantizer(quantizer_type: str | dict = "int8", **kwargs: Any):
     """Build a quantizer by name."""
-    _load_builtin_quantizers()
+    load_builtin_quantizers()
     return build_from_config(
         QUANTIZER_REGISTRY,
         quantizer_type,

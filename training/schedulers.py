@@ -10,7 +10,7 @@ from core.registry import Registry, build_from_config
 SCHEDULER_REGISTRY = Registry("scheduler")
 
 
-@SCHEDULER_REGISTRY.register("constant")
+@SCHEDULER_REGISTRY.register("constant", capabilities=("learning_rate_schedule",))
 def build_constant_scheduler(
     optimizer: torch.optim.Optimizer,
     **_: object,
@@ -18,7 +18,7 @@ def build_constant_scheduler(
     return torch.optim.lr_scheduler.LambdaLR(optimizer, lambda _: 1.0)
 
 
-@SCHEDULER_REGISTRY.register("cosine")
+@SCHEDULER_REGISTRY.register("cosine", capabilities=("learning_rate_schedule",))
 def build_cosine_scheduler(
     optimizer: torch.optim.Optimizer,
     max_steps: int,

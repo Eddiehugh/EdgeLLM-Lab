@@ -10,7 +10,10 @@ from core.registry import Registry, build_from_config
 KV_CACHE_REGISTRY = Registry("kv_cache")
 
 
-@KV_CACHE_REGISTRY.register("append")
+@KV_CACHE_REGISTRY.register(
+    "append",
+    capabilities=("contiguous", "append_only", "autoregressive"),
+)
 class KVCache:
     """Simple append-only KV cache for autoregressive decoding."""
 

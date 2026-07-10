@@ -10,7 +10,10 @@ from core.registry import Registry, build_from_config
 DATALOADER_REGISTRY = Registry("dataloader")
 
 
-@DATALOADER_REGISTRY.register("torch")
+@DATALOADER_REGISTRY.register(
+    "torch",
+    capabilities=("batching", "shuffle", "multiprocessing"),
+)
 def build_torch_dataloader(
     dataset: Dataset,
     batch_size: int,

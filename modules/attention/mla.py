@@ -9,7 +9,10 @@ from modules.attention.base import apply_attention, merge_heads
 from modules.attention.registry import ATTENTION_REGISTRY
 
 
-@ATTENTION_REGISTRY.register("mla")
+@ATTENTION_REGISTRY.register(
+    "mla",
+    capabilities=("self_attention", "latent_kv", "learning_reference"),
+)
 class MultiHeadLatentAttention(nn.Module):
     """Simplified MLA-style attention with low-rank latent KV states.
 

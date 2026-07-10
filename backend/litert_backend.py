@@ -1,9 +1,16 @@
 """LiteRT backend adapter placeholder."""
 
 from backend.base import BACKEND_REGISTRY, InferenceBackend
+from core import Maturity, ProjectLevel
 
 
-@BACKEND_REGISTRY.register("litert")
+@BACKEND_REGISTRY.register(
+    "litert",
+    level=ProjectLevel.WORK,
+    maturity=Maturity.PLANNED,
+    capabilities=("edge_runtime", "mobile"),
+    requires=("litert",),
+)
 class LiteRTBackend(InferenceBackend):
     """Adapter boundary for LiteRT."""
 

@@ -6,14 +6,25 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from core import Maturity, ProjectLevel
 from core.registry import Registry, build_from_config
 
 
 LOSS_REGISTRY = Registry[nn.Module]("loss")
 
 
-@LOSS_REGISTRY.register("causal_lm")
-@LOSS_REGISTRY.register("cross_entropy")
+@LOSS_REGISTRY.register(
+    "causal_lm",
+    level=ProjectLevel.LEARN,
+    maturity=Maturity.VERIFIED,
+    capabilities=("causal_lm", "supervised"),
+)
+@LOSS_REGISTRY.register(
+    "cross_entropy",
+    level=ProjectLevel.LEARN,
+    maturity=Maturity.VERIFIED,
+    capabilities=("supervised",),
+)
 class CausalLMLoss(nn.Module):
     """Next-token cross entropy for causal language modeling."""
 
@@ -58,7 +69,12 @@ class CausalLMLoss(nn.Module):
         )
 
 
-@LOSS_REGISTRY.register("z_loss")
+@LOSS_REGISTRY.register(
+    "z_loss",
+    level=ProjectLevel.LEARN,
+    maturity=Maturity.EXPERIMENTAL,
+    capabilities=("causal_lm", "logit_regularization"),
+)
 class ZLoss(CausalLMLoss):
     """Causal LM loss with a logit normalization penalty."""
 
@@ -72,7 +88,13 @@ class ZLoss(CausalLMLoss):
         return ce_loss + self.z_loss_weight * z_loss
 
 
-@LOSS_REGISTRY.register("distillation")
+@LOSS_REGISTRY.register(
+    "distillation",
+    level=ProjectLevel.LEARN,
+    maturity=Maturity.EXPERIMENTAL,
+    capabilities=("causal_lm", "knowledge_distillation"),
+    requires=("teacher_logits",),
+)
 class DistillationLoss(CausalLMLoss):
     """Blend causal LM loss with teacher-student KL divergence."""
 

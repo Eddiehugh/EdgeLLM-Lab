@@ -1,9 +1,16 @@
 """ExecuTorch backend adapter placeholder."""
 
 from backend.base import BACKEND_REGISTRY, InferenceBackend
+from core import Maturity, ProjectLevel
 
 
-@BACKEND_REGISTRY.register("executorch")
+@BACKEND_REGISTRY.register(
+    "executorch",
+    level=ProjectLevel.WORK,
+    maturity=Maturity.PLANNED,
+    capabilities=("pte", "edge_runtime"),
+    requires=("executorch",),
+)
 class ExecuTorchBackend(InferenceBackend):
     """Adapter boundary for ExecuTorch."""
 

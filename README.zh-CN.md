@@ -27,14 +27,14 @@ Level 3: Work by Wrapping
 
 ```text
 EdgeLLM-Lab/
-├── core/                    # 注册表、配置加载、扩展加载、运行时工具
+├── core/                    # 注册表、组件规范、配置、环境追踪、运行时工具
 ├── modules/                 # Level 1: 算法包；每种技术独立文件
 ├── models/                  # Level 1: TinyGPT、LLaMA-like、DeepSeek-like、后续模型族
 ├── training/                # Level 1/2: Loss、Optimizer、Scheduler、训练入口
 ├── inference/               # Level 1/2: Sampler、KV Cache、生成引擎
 ├── compression/             # Level 1/2: 量化、剪枝、低秩压缩
 ├── data/                    # Tokenizer、Dataset、Dataloader
-├── experiments/             # Level 2: 配置驱动实验运行器和实验产物管理
+├── experiments/             # Level 2: 可注册 Stage 流水线、上下文和产物管理
 ├── benchmark/               # Level 2: Benchmark 注册表和指标采集
 ├── backend/                 # Level 3: Torch、llama.cpp、ONNX、MLC 等运行时边界
 ├── integrations/            # Level 3: 外部开源项目的轻量适配层
@@ -96,7 +96,7 @@ tests/
 - `loss`: causal LM cross entropy、z-loss、distillation。
 - `sampler`: greedy、multinomial、top-k、top-p。
 - `kv_cache`: 当前有 append-only cache，后续扩展 paged、sliding、quantized cache。
-- `quantizer`: 当前有 INT8，后续扩展 INT4、AWQ、GPTQ、KV cache quantization。
+- `quantizer`: 当前只有实验性的张量级 INT8；packed INT4、AWQ、GPTQ 和 KV cache quantization 仍在规划中。
 
 例如新增自己的 Attention：
 
@@ -116,6 +116,13 @@ model:
   attention_type: my_attention
 ```
 
+注册项包含 Level、成熟度、能力、依赖、别名和源码位置等结构化信息，且无需实例化模型即可查看：
+
+```bash
+python3 -m cli list-components --details
+python3 -m cli component-info backend llama_cpp
+```
+
 ## Level 2: Experiment by Comparing
 
 这一层用于在统一框架下比较不同算法、模型结构、压缩方法和推理后端。
@@ -124,11 +131,13 @@ model:
 
 ```text
 config.yaml
-  -> 构建 tokenizer / dataset / model / loss / optimizer / scheduler
-  -> 训练或评估
-  -> 采集指标
+  -> 可注册的 Pipeline Stages
+  -> build / train / evaluate / compress / export / benchmark
+  -> 采集指标和运行环境
   -> 写入实验产物
 ```
+
+默认 Pipeline 保持原有训练行为。扩展模块可以注册新的 `ExperimentStage`，然后在 `pipeline.stages` 中排列，无需修改 `ExperimentRunner`。
 
 每次运行都会生成独立目录：
 
@@ -136,8 +145,11 @@ config.yaml
 runs/<run-id>/
 ├── config.yaml
 ├── metrics.json
+├── manifest.json
 └── report.md
 ```
+
+`manifest.json` 记录运行状态、环境、Git revision、选用组件、Stage 耗时、错误和产物路径。
 
 快速 smoke test：
 
@@ -149,6 +161,13 @@ python3 -m cli smoke
 
 ```bash
 python3 -m cli train -c configs/smoke.yaml
+```
+
+不执行实验，仅校验并展开配置：
+
+```bash
+python3 -m cli validate-config -c configs/smoke.yaml
+python3 -m cli validate-config -c configs/smoke.yaml --resolved
 ```
 
 查看已注册组件：
@@ -272,4 +291,5 @@ python3 -m cli train -c configs/smoke.yaml
 ## 设计文档
 
 - [架构设计](docs/ARCHITECTURE.md)
+- [扩展开发指南](docs/EXTENDING.md)
 - [开源项目接入流程](docs/OPEN_SOURCE_INTEGRATION.md)

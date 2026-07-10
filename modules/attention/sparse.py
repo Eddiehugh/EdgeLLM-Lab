@@ -12,7 +12,10 @@ from modules.attention.base import merge_heads, split_heads
 from modules.attention.registry import ATTENTION_REGISTRY
 
 
-@ATTENTION_REGISTRY.register("topk_sparse")
+@ATTENTION_REGISTRY.register(
+    "topk_sparse",
+    capabilities=("self_attention", "topk_sparse"),
+)
 class TopKSparseAttention(nn.Module):
     """Keep only the top-k attention scores for each query."""
 

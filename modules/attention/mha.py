@@ -9,7 +9,10 @@ from modules.attention.base import apply_attention, merge_heads, split_heads
 from modules.attention.registry import ATTENTION_REGISTRY
 
 
-@ATTENTION_REGISTRY.register("mha")
+@ATTENTION_REGISTRY.register(
+    "mha",
+    capabilities=("self_attention", "dense", "qkv_heads_equal"),
+)
 class MultiHeadAttention(nn.Module):
     """Standard dense Multi-Head Attention."""
 

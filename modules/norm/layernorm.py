@@ -7,7 +7,7 @@ import torch.nn as nn
 from modules.norm.registry import NORM_REGISTRY
 
 
-@NORM_REGISTRY.register("layernorm")
+@NORM_REGISTRY.register("layernorm", capabilities=("normalization", "mean_centered"))
 class LayerNorm(nn.LayerNorm):
     """LayerNorm with the same hidden_size signature as RMSNorm."""
 

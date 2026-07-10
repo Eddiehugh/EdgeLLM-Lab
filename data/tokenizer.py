@@ -18,7 +18,10 @@ class TokenizerWrapper:
         raise NotImplementedError
 
 
-@TOKENIZER_REGISTRY.register("char")
+@TOKENIZER_REGISTRY.register(
+    "char",
+    capabilities=("encode", "decode", "smoke_test"),
+)
 class CharTokenizer(TokenizerWrapper):
     """Small character tokenizer for smoke tests and tiny experiments."""
 

@@ -75,6 +75,9 @@ class Run:
     def write_metrics(self, metrics: dict[str, Any]) -> Path:
         return self.write_json("metrics.json", metrics)
 
+    def write_manifest(self, manifest: dict[str, Any]) -> Path:
+        return self.write_json("manifest.json", manifest)
+
     def write_checkpoint(self, model: torch.nn.Module, relative_path: str = "checkpoint.pt") -> Path:
         output_path = self.path / relative_path
         output_path.parent.mkdir(parents=True, exist_ok=True)

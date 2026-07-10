@@ -11,7 +11,10 @@ from core.registry import Registry, build_from_config
 DATASET_REGISTRY = Registry("dataset")
 
 
-@DATASET_REGISTRY.register("causal_lm")
+@DATASET_REGISTRY.register(
+    "causal_lm",
+    capabilities=("next_token_prediction", "fixed_length"),
+)
 class CausalLMDataset(Dataset):
     """Fixed-length next-token prediction samples."""
 

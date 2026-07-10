@@ -1,3 +1,5 @@
+schema_version: 1
+
 experiment:
   name: smoke-test
   output_dir: runs

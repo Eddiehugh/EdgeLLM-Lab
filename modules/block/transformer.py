@@ -10,7 +10,10 @@ from modules.mlp import build_mlp
 from modules.norm import build_norm
 
 
-@BLOCK_REGISTRY.register("transformer")
+@BLOCK_REGISTRY.register(
+    "transformer",
+    capabilities=("pre_norm", "residual", "self_attention", "mlp"),
+)
 class TransformerBlock(nn.Module):
     """Configurable pre-norm Transformer block."""
 

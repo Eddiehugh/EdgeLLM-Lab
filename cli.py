@@ -7,7 +7,7 @@ import json
 from typing import Any
 
 from core.config import load_config, with_overrides
-from experiments import run_experiment
+from experiments import normalize_experiment_config, run_experiment
 from integrations import build_integration, integration_snapshot
 
 
@@ -17,29 +17,25 @@ def _load_config_with_overrides(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def _load_all_builtin_components() -> None:
-    from backend import build_backend
-    from compression import build_quantizer
-    from models import build_model
+    from backend import load_builtin_backends
+    from compression import load_builtin_quantizers
+    from experiments.stage import load_builtin_stages
+    from models import load_builtin_models
 
-    build_model(
-        "tiny_gpt",
-        vocab_size=16,
-        hidden_size=8,
-        num_layers=1,
-        num_heads=1,
-        max_position_embeddings=8,
-    )
-    build_backend("torch")
-    build_quantizer("int8")
+    load_builtin_models()
+    load_builtin_backends()
+    load_builtin_quantizers()
+    load_builtin_stages()
 
 
-def _component_snapshot() -> dict[str, tuple[str, ...]]:
+def _component_registries():
     _load_all_builtin_components()
 
     from backend import BACKEND_REGISTRY
     from benchmark import BENCHMARK_REGISTRY
     from compression import QUANTIZER_REGISTRY
     from data import DATALOADER_REGISTRY, DATASET_REGISTRY, TOKENIZER_REGISTRY
+    from experiments import STAGE_REGISTRY
     from inference import KV_CACHE_REGISTRY, SAMPLER_REGISTRY
     from models import MODEL_REGISTRY
     from modules import (
@@ -53,24 +49,32 @@ def _component_snapshot() -> dict[str, tuple[str, ...]]:
     from training import LOSS_REGISTRY, OPTIMIZER_REGISTRY, SCHEDULER_REGISTRY
 
     return {
-        "attention": ATTENTION_REGISTRY.names(),
-        "mlp": MLP_REGISTRY.names(),
-        "moe": MOE_REGISTRY.names(),
-        "norm": NORM_REGISTRY.names(),
-        "block": BLOCK_REGISTRY.names(),
-        "position_encoding": POSITION_ENCODING_REGISTRY.names(),
-        "model": MODEL_REGISTRY.names(),
-        "loss": LOSS_REGISTRY.names(),
-        "optimizer": OPTIMIZER_REGISTRY.names(),
-        "scheduler": SCHEDULER_REGISTRY.names(),
-        "sampler": SAMPLER_REGISTRY.names(),
-        "kv_cache": KV_CACHE_REGISTRY.names(),
-        "backend": BACKEND_REGISTRY.names(),
-        "benchmark": BENCHMARK_REGISTRY.names(),
-        "dataset": DATASET_REGISTRY.names(),
-        "dataloader": DATALOADER_REGISTRY.names(),
-        "tokenizer": TOKENIZER_REGISTRY.names(),
-        "quantizer": QUANTIZER_REGISTRY.names(),
+        "attention": ATTENTION_REGISTRY,
+        "mlp": MLP_REGISTRY,
+        "moe": MOE_REGISTRY,
+        "norm": NORM_REGISTRY,
+        "block": BLOCK_REGISTRY,
+        "position_encoding": POSITION_ENCODING_REGISTRY,
+        "model": MODEL_REGISTRY,
+        "loss": LOSS_REGISTRY,
+        "optimizer": OPTIMIZER_REGISTRY,
+        "scheduler": SCHEDULER_REGISTRY,
+        "sampler": SAMPLER_REGISTRY,
+        "kv_cache": KV_CACHE_REGISTRY,
+        "backend": BACKEND_REGISTRY,
+        "benchmark": BENCHMARK_REGISTRY,
+        "dataset": DATASET_REGISTRY,
+        "dataloader": DATALOADER_REGISTRY,
+        "tokenizer": TOKENIZER_REGISTRY,
+        "quantizer": QUANTIZER_REGISTRY,
+        "experiment_stage": STAGE_REGISTRY,
+    }
+
+
+def _component_snapshot() -> dict[str, tuple[str, ...]]:
+    return {
+        component_type: registry.canonical_names()
+        for component_type, registry in _component_registries().items()
     }
 
 
@@ -80,9 +84,56 @@ def train_command(args: argparse.Namespace) -> int:
     return 0
 
 
-def list_components_command(_: argparse.Namespace) -> int:
+def list_components_command(args: argparse.Namespace) -> int:
+    registries = _component_registries()
+    if args.as_json:
+        snapshot = {
+            component_type: registry.snapshot()
+            for component_type, registry in registries.items()
+        }
+        print(json.dumps(snapshot, indent=2, ensure_ascii=False))
+        return 0
+
+    if args.details:
+        for component_type, registry in registries.items():
+            for name, info in registry.snapshot().items():
+                capabilities = ",".join(info["capabilities"]) or "-"
+                print(
+                    f"{component_type}.{name}: level={info['level']} "
+                    f"maturity={info['maturity']} capabilities={capabilities}"
+                )
+        return 0
+
     for component_type, names in _component_snapshot().items():
         print(f"{component_type}: {', '.join(names)}")
+    return 0
+
+
+def component_info_command(args: argparse.Namespace) -> int:
+    registries = _component_registries()
+    try:
+        registry = registries[args.component_type]
+    except KeyError as exc:
+        available = ", ".join(registries)
+        raise ValueError(
+            f"Unknown component type '{args.component_type}'. Available: {available}"
+        ) from exc
+    print(json.dumps(registry.describe(args.name), indent=2, ensure_ascii=False))
+    return 0
+
+
+def validate_config_command(args: argparse.Namespace) -> int:
+    config = normalize_experiment_config(_load_config_with_overrides(args))
+    if args.resolved:
+        print(json.dumps(config, indent=2, ensure_ascii=False))
+    else:
+        stages = ", ".join(
+            stage
+            if isinstance(stage, str)
+            else str(stage.get("type", stage.get("name")))
+            for stage in config["pipeline"]["stages"]
+        )
+        print(f"valid schema_version={config['schema_version']} stages={stages}")
     return 0
 
 
@@ -175,7 +226,26 @@ def build_parser() -> argparse.ArgumentParser:
         "list-components",
         help="Show registered component names",
     )
+    list_components.add_argument("--details", action="store_true")
+    list_components.add_argument("--json", action="store_true", dest="as_json")
     list_components.set_defaults(func=list_components_command)
+
+    component_info = subparsers.add_parser(
+        "component-info",
+        help="Show metadata for one registered component",
+    )
+    component_info.add_argument("component_type")
+    component_info.add_argument("name")
+    component_info.set_defaults(func=component_info_command)
+
+    validate_config = subparsers.add_parser(
+        "validate-config",
+        help="Validate and resolve an experiment config without running it",
+    )
+    validate_config.add_argument("-c", "--config", required=True)
+    validate_config.add_argument("-o", "--override", action="append", default=[])
+    validate_config.add_argument("--resolved", action="store_true")
+    validate_config.set_defaults(func=validate_config_command)
 
     list_integrations = subparsers.add_parser(
         "list-integrations",

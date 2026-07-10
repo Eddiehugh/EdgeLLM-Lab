@@ -17,28 +17,20 @@ edgellm = "cli:main"
 
 [tool.setuptools]
 py-modules = ["cli", "main"]
-packages = [
-  "backend",
-  "benchmark",
-  "compression",
-  "compression.quantization",
-  "core",
-  "data",
-  "experiments",
-  "integrations",
-  "integrations.llama_cpp",
-  "integrations.mobilellm",
-  "integrations.nanogpt",
-  "integrations.smollm",
-  "integrations.tinyllama",
-  "inference",
-  "models",
-  "modules",
-  "modules.attention",
-  "modules.block",
-  "modules.mlp",
-  "modules.moe",
-  "modules.norm",
-  "modules.position",
-  "training",
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+  "backend*",
+  "benchmark*",
+  "compression*",
+  "core*",
+  "data*",
+  "experiments*",
+  "integrations*",
+  "inference*",
+  "models*",
+  "modules*",
+  "training*",
 ]
+exclude = ["external_projects*", "runs*", "tests*"]

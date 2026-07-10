@@ -16,7 +16,7 @@ def _select_logits(logits: torch.Tensor) -> torch.Tensor:
     return logits
 
 
-@SAMPLER_REGISTRY.register("greedy")
+@SAMPLER_REGISTRY.register("greedy", capabilities=("deterministic",))
 class GreedySampler:
     """Always choose the highest-probability token."""
 
@@ -24,7 +24,7 @@ class GreedySampler:
         return torch.argmax(_select_logits(logits), dim=-1)
 
 
-@SAMPLER_REGISTRY.register("multinomial")
+@SAMPLER_REGISTRY.register("multinomial", capabilities=("stochastic", "temperature"))
 class MultinomialSampler:
     """Sample from the full token distribution."""
 
@@ -37,7 +37,7 @@ class MultinomialSampler:
         return torch.multinomial(probs, num_samples=1).squeeze(-1)
 
 
-@SAMPLER_REGISTRY.register("top_k")
+@SAMPLER_REGISTRY.register("top_k", capabilities=("stochastic", "top_k", "temperature"))
 class TopKSampler:
     """Sample only from the top-k tokens."""
 
@@ -54,7 +54,7 @@ class TopKSampler:
         return indices.gather(-1, next_index).squeeze(-1)
 
 
-@SAMPLER_REGISTRY.register("top_p")
+@SAMPLER_REGISTRY.register("top_p", capabilities=("stochastic", "top_p", "temperature"))
 class TopPSampler:
     """Nucleus sampling."""
 

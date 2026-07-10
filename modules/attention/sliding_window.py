@@ -9,7 +9,10 @@ from modules.attention.base import apply_attention, merge_heads, split_heads
 from modules.attention.registry import ATTENTION_REGISTRY
 
 
-@ATTENTION_REGISTRY.register("sliding_window")
+@ATTENTION_REGISTRY.register(
+    "sliding_window",
+    capabilities=("self_attention", "local_window", "causal"),
+)
 class SlidingWindowAttention(nn.Module):
     """Causal local attention restricted to a fixed window."""
 

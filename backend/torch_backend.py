@@ -5,10 +5,17 @@ from __future__ import annotations
 import torch
 
 from backend.base import BACKEND_REGISTRY, InferenceBackend
+from core import Maturity, ProjectLevel
 from inference.sampler import build_sampler
 
 
-@BACKEND_REGISTRY.register("torch")
+@BACKEND_REGISTRY.register(
+    "torch",
+    level=ProjectLevel.WORK,
+    maturity=Maturity.EXPERIMENTAL,
+    capabilities=("eager", "generate", "pytorch"),
+    requires=("torch",),
+)
 class TorchBackend(InferenceBackend):
     """Minimal backend for in-process PyTorch models."""
 

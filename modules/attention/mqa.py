@@ -9,7 +9,10 @@ from modules.attention.base import apply_attention, merge_heads
 from modules.attention.registry import ATTENTION_REGISTRY
 
 
-@ATTENTION_REGISTRY.register("mqa")
+@ATTENTION_REGISTRY.register(
+    "mqa",
+    capabilities=("self_attention", "dense", "shared_kv"),
+)
 class MultiQueryAttention(nn.Module):
     """MHA queries with a single shared key/value head."""
 

@@ -12,7 +12,7 @@ from core.registry import Registry, build_from_config
 OPTIMIZER_REGISTRY = Registry("optimizer")
 
 
-@OPTIMIZER_REGISTRY.register("adamw")
+@OPTIMIZER_REGISTRY.register("adamw", capabilities=("gradient_optimization",))
 def build_adamw(
     params: Iterable[torch.nn.Parameter],
     lr: float = 3e-4,
@@ -29,7 +29,7 @@ def build_adamw(
     )
 
 
-@OPTIMIZER_REGISTRY.register("sgd")
+@OPTIMIZER_REGISTRY.register("sgd", capabilities=("gradient_optimization",))
 def build_sgd(
     params: Iterable[torch.nn.Parameter],
     lr: float = 1e-2,

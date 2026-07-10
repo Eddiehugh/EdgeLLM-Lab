@@ -8,12 +8,18 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
+from core import Maturity, ProjectLevel
 from models.registry import MODEL_REGISTRY
 from modules.block import build_block
 from modules.norm import build_norm
 
 
-@MODEL_REGISTRY.register("tiny_gpt")
+@MODEL_REGISTRY.register(
+    "tiny_gpt",
+    level=ProjectLevel.LEARN,
+    maturity=Maturity.VERIFIED,
+    capabilities=("causal_lm", "training", "learned_position_embedding"),
+)
 class TinyGPT(nn.Module):
     """A minimal GPT-style causal language model."""
 

@@ -8,7 +8,7 @@ import torch.nn as nn
 from modules.norm.registry import NORM_REGISTRY
 
 
-@NORM_REGISTRY.register("rmsnorm")
+@NORM_REGISTRY.register("rmsnorm", capabilities=("normalization", "rms"))
 class RMSNorm(nn.Module):
     """Root mean square normalization used by LLaMA-like models."""
 

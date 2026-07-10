@@ -1,9 +1,16 @@
 """ONNX Runtime backend adapter placeholder."""
 
 from backend.base import BACKEND_REGISTRY, InferenceBackend
+from core import Maturity, ProjectLevel
 
 
-@BACKEND_REGISTRY.register("onnx")
+@BACKEND_REGISTRY.register(
+    "onnx",
+    level=ProjectLevel.WORK,
+    maturity=Maturity.PLANNED,
+    capabilities=("onnx", "portable_runtime"),
+    requires=("onnxruntime",),
+)
 class ONNXBackend(InferenceBackend):
     """Adapter boundary for ONNX Runtime inference."""
 

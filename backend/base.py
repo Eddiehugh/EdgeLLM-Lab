@@ -24,7 +24,9 @@ class InferenceBackend:
         raise NotImplementedError
 
 
-def _load_builtin_backends() -> None:
+def load_builtin_backends() -> None:
+    """Load built-in backend registrations without constructing a backend."""
+
     global _BUILTINS_LOADED
     if _BUILTINS_LOADED:
         return
@@ -40,7 +42,7 @@ def _load_builtin_backends() -> None:
 
 def build_backend(backend_type: str | dict = "torch", **kwargs: Any) -> InferenceBackend:
     """Build an inference backend by name."""
-    _load_builtin_backends()
+    load_builtin_backends()
     return build_from_config(
         BACKEND_REGISTRY,
         backend_type,

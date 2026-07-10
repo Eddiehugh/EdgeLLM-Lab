@@ -5,6 +5,7 @@ from __future__ import annotations
 import torch
 
 from compression.quantization.registry import QUANTIZER_REGISTRY
+from core import Maturity, ProjectLevel
 
 
 def quantize_int8(x: torch.Tensor):
@@ -17,7 +18,12 @@ def dequantize_int8(q: torch.Tensor, scale: torch.Tensor):
     return q.float() * scale
 
 
-@QUANTIZER_REGISTRY.register("int8")
+@QUANTIZER_REGISTRY.register(
+    "int8",
+    level=ProjectLevel.LEARN,
+    maturity=Maturity.EXPERIMENTAL,
+    capabilities=("tensor_quantization", "symmetric", "int8"),
+)
 class SymmetricInt8Quantizer:
     """Callable symmetric INT8 tensor quantizer."""
 

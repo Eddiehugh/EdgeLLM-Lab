@@ -1,9 +1,16 @@
 """MLC LLM backend adapter placeholder."""
 
 from backend.base import BACKEND_REGISTRY, InferenceBackend
+from core import Maturity, ProjectLevel
 
 
-@BACKEND_REGISTRY.register("mlc")
+@BACKEND_REGISTRY.register(
+    "mlc",
+    level=ProjectLevel.WORK,
+    maturity=Maturity.PLANNED,
+    capabilities=("compiled_runtime", "edge_runtime", "mobile"),
+    requires=("mlc_llm",),
+)
 class MLCBackend(InferenceBackend):
     """Adapter boundary for MLC LLM."""
 

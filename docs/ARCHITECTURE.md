@@ -27,7 +27,9 @@ belongs in domain packages.
 ## Module Layout Rule
 
 Do not keep a whole technical family in one large file. Use one package per
-domain and one file per technique.
+domain and one file per simple technique. When a technique gains independent
+configs, kernels, cache layouts, or conversion logic, promote that file to a
+subpackage while preserving its public import path.
 
 Example:
 
@@ -64,6 +66,11 @@ Every replaceable part follows the same pattern:
 3. Build from config through a `build_*` factory.
 4. Let the experiment runner consume only factories, never concrete classes.
 
+Registrations also expose a `ComponentSpec`: project Level, maturity,
+capabilities, runtime requirements, aliases, and source module. Maturity uses
+the explicit states `planned`, `experimental`, `verified`, and `production`.
+An importable placeholder must be marked `planned`, not presented as supported.
+
 Example:
 
 ```python
@@ -81,6 +88,36 @@ Config:
 model:
   attention_type: my_attention
 ```
+
+Use `python3 -m cli component-info attention my_attention` to inspect the
+resolved metadata.
+
+## Pipeline Rule
+
+`ExperimentRunner` owns lifecycle and artifacts, but it does not build models
+or contain training logic. Work is performed by registered `ExperimentStage`
+classes through a shared `ExperimentContext`.
+
+Each stage declares `requires` and `provides`. The pipeline validates dependency
+order before execution and checks declared outputs after every stage. Built-in
+stages live in `experiments/stages/`; custom stages can be loaded through the
+same `imports` extension mechanism as algorithm modules.
+
+```yaml
+pipeline:
+  stages:
+    - runtime_setup
+    - build_data
+    - build_model
+    - build_training
+    - train
+    - model_stats
+    - checkpoint
+```
+
+Future evaluation, compression, export, deployment, and benchmark workflows
+should be new stages or new stage sequences, not conditionals added to the
+runner.
 
 ## Extension Rule
 
@@ -113,11 +150,15 @@ Every run writes:
 runs/<run-id>/
 ├── config.yaml
 ├── metrics.json
+├── manifest.json
 └── report.md
 ```
 
-Future artifacts such as checkpoints, generated samples, benchmark CSV files,
-profiles, and exported models should live under the same run directory.
+`manifest.json` is the machine-readable lifecycle record. It captures status,
+environment, Git revision, component specs, stage timings, failures, and
+artifact paths. Checkpoints, generated samples, benchmark files, profiles, and
+exported models should live under the same run directory and be registered in
+that manifest.
 
 ## Adapter Rule
 

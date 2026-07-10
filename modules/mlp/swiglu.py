@@ -8,7 +8,7 @@ import torch.nn as nn
 from modules.mlp.registry import MLP_REGISTRY
 
 
-@MLP_REGISTRY.register("swiglu")
+@MLP_REGISTRY.register("swiglu", capabilities=("feed_forward", "gated", "swiglu"))
 class SwiGLUMLP(nn.Module):
     """LLaMA-style gated MLP."""
 

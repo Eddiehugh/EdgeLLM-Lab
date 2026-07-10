@@ -13,7 +13,9 @@ MODEL_REGISTRY = Registry[type[nn.Module]]("model")
 _BUILTINS_LOADED = False
 
 
-def _load_builtin_models() -> None:
+def load_builtin_models() -> None:
+    """Load built-in model registrations without constructing a model."""
+
     global _BUILTINS_LOADED
     if _BUILTINS_LOADED:
         return
@@ -24,7 +26,7 @@ def _load_builtin_models() -> None:
 
 def build_model(model_type: str | dict = "tiny_gpt", **kwargs: Any) -> nn.Module:
     """Build a model by config name."""
-    _load_builtin_models()
+    load_builtin_models()
     return build_from_config(
         MODEL_REGISTRY,
         model_type,
