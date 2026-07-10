@@ -34,5 +34,11 @@ packages = [
   "inference",
   "models",
   "modules",
+  "modules.attention",
+  "modules.block",
+  "modules.mlp",
+  "modules.moe",
+  "modules.norm",
+  "modules.position",
   "training",
 ]

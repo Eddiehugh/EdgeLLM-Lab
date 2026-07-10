@@ -46,6 +46,7 @@ def _component_snapshot() -> dict[str, tuple[str, ...]]:
         ATTENTION_REGISTRY,
         BLOCK_REGISTRY,
         MLP_REGISTRY,
+        MOE_REGISTRY,
         NORM_REGISTRY,
         POSITION_ENCODING_REGISTRY,
     )
@@ -54,6 +55,7 @@ def _component_snapshot() -> dict[str, tuple[str, ...]]:
     return {
         "attention": ATTENTION_REGISTRY.names(),
         "mlp": MLP_REGISTRY.names(),
+        "moe": MOE_REGISTRY.names(),
         "norm": NORM_REGISTRY.names(),
         "block": BLOCK_REGISTRY.names(),
         "position_encoding": POSITION_ENCODING_REGISTRY.names(),

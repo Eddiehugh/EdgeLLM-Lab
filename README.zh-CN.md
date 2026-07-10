@@ -28,7 +28,7 @@ Level 3: Work by Wrapping
 ```text
 EdgeLLM-Lab/
 ├── core/                    # 注册表、配置加载、扩展加载、运行时工具
-├── modules/                 # Level 1: Attention、MLP、Norm、RoPE、Block、MoE
+├── modules/                 # Level 1: 算法包；每种技术独立文件
 ├── models/                  # Level 1: TinyGPT、LLaMA-like、DeepSeek-like、后续模型族
 ├── training/                # Level 1/2: Loss、Optimizer、Scheduler、训练入口
 ├── inference/               # Level 1/2: Sampler、KV Cache、生成引擎
@@ -41,6 +41,7 @@ EdgeLLM-Lab/
 ├── external_projects/       # 外部项目源码独立工作区，不属于核心包
 ├── configs/                 # 实验配置
 ├── docs/                    # 架构和开源项目接入文档
+├── tests/                   # 单元测试和手动调试探针
 ├── reports/                 # 学习笔记和实验报告
 ├── deploy/                  # 端侧部署实验
 ├── cli.py                   # CLI 入口
@@ -51,9 +52,42 @@ EdgeLLM-Lab/
 
 这一层用于自己实现 LLM 核心部件，通过代码理解原理。
 
+`modules/` 采用“技术域一个包、每种技术一个文件”的结构：
+
+```text
+modules/
+├── attention/
+│   ├── mha.py
+│   ├── mqa.py
+│   ├── gqa.py
+│   ├── mla.py
+│   ├── sliding_window.py
+│   └── sparse.py
+├── mlp/
+│   ├── gelu.py
+│   └── swiglu.py
+├── norm/
+│   ├── layernorm.py
+│   └── rmsnorm.py
+├── block/
+│   └── transformer.py
+├── position/
+│   └── rope.py
+└── moe/
+    └── router.py
+```
+
+`tests/` 与可直接使用的 `modules/` 分离：
+
+```text
+tests/
+├── unit/     # 稳定单元测试和 smoke test
+└── debug/    # 手动运行的调试探针
+```
+
 当前已经支持可替换的部件：
 
-- `attention`: 当前有 MHA，后续扩展 MQA、GQA、MLA、滑动窗口、稀疏 Attention。
+- `attention`: 当前有 MHA、MQA、GQA、学习版 MLA、滑动窗口、top-k 稀疏 Attention。
 - `mlp`: GELU MLP 和 SwiGLU。
 - `norm`: LayerNorm 和 RMSNorm。
 - `block`: Transformer Block。
@@ -121,6 +155,18 @@ python3 -m cli train -c configs/smoke.yaml
 
 ```bash
 python3 -m cli list-components
+```
+
+运行稳定测试：
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+运行手动调试探针：
+
+```bash
+python3 -m tests.debug.attention_variants_debug
 ```
 
 Level 2 重点指标：

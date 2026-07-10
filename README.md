@@ -28,7 +28,7 @@ Learn one technique -> implement one module -> run one experiment -> write one r
 ```text
 EdgeLLM-Lab/
 ├── core/                    # Registry, config loading, extension loading, runtime utilities
-├── modules/                 # Level 1: Attention, MLP, Norm, RoPE, Block, MoE
+├── modules/                 # Level 1: Algorithm packages; each technique has its own file
 ├── models/                  # Level 1: TinyGPT, LLaMA-like, DeepSeek-like, future model families
 ├── training/                # Level 1/2: Losses, optimizers, schedulers, training entry points
 ├── inference/               # Level 1/2: Samplers, KV cache, generation engine
@@ -41,6 +41,7 @@ EdgeLLM-Lab/
 ├── external_projects/       # External project checkouts; not part of the core package
 ├── configs/                 # Experiment configs
 ├── docs/                    # Architecture and integration guides
+├── tests/                   # Unit tests and manual debug probes
 ├── reports/                 # Learning notes and experiment reports
 ├── deploy/                  # Edge deployment experiments
 ├── cli.py                   # CLI entry point
@@ -51,9 +52,42 @@ EdgeLLM-Lab/
 
 This level is for understanding LLM internals by writing simplified implementations yourself.
 
+`modules/` uses a package-per-domain and file-per-technique layout:
+
+```text
+modules/
+├── attention/
+│   ├── mha.py
+│   ├── mqa.py
+│   ├── gqa.py
+│   ├── mla.py
+│   ├── sliding_window.py
+│   └── sparse.py
+├── mlp/
+│   ├── gelu.py
+│   └── swiglu.py
+├── norm/
+│   ├── layernorm.py
+│   └── rmsnorm.py
+├── block/
+│   └── transformer.py
+├── position/
+│   └── rope.py
+└── moe/
+    └── router.py
+```
+
+`tests/` is separate from usable modules:
+
+```text
+tests/
+├── unit/     # stable unit and smoke tests
+└── debug/    # manually runnable debug probes
+```
+
 Current replaceable components:
 
-- `attention`: MHA now; later MQA, GQA, MLA, sliding-window, sparse attention.
+- `attention`: MHA, MQA, GQA, learning-oriented MLA, sliding-window, top-k sparse attention.
 - `mlp`: GELU MLP and SwiGLU.
 - `norm`: LayerNorm and RMSNorm.
 - `block`: Transformer block.
@@ -121,6 +155,18 @@ List registered components:
 
 ```bash
 python3 -m cli list-components
+```
+
+Run stable tests:
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+Run a manual debug probe:
+
+```bash
+python3 -m tests.debug.attention_variants_debug
 ```
 
 Important Level 2 metrics:

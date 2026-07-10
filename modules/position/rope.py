@@ -1,13 +1,10 @@
-"""Position encoding utilities and registry."""
+"""Rotary Position Embedding."""
 
 from __future__ import annotations
 
 import torch
 
-from core.registry import Registry, build_from_config
-
-
-POSITION_ENCODING_REGISTRY = Registry("position_encoding")
+from modules.position.registry import POSITION_ENCODING_REGISTRY
 
 
 @POSITION_ENCODING_REGISTRY.register("rope")
@@ -48,14 +45,5 @@ class RotaryPositionEmbedding:
 
 def apply_rope(q: torch.Tensor, k: torch.Tensor, base: float = 10000.0):
     """Apply RoPE to query and key tensors."""
+
     return RotaryPositionEmbedding(q.size(-1), base=base).apply(q, k)
-
-
-def build_position_encoding(position_type: str | dict = "rope", **kwargs):
-    """Build a position encoding module by name."""
-    return build_from_config(
-        POSITION_ENCODING_REGISTRY,
-        position_type,
-        default_type="rope",
-        **kwargs,
-    )

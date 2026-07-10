@@ -9,7 +9,7 @@ or inference scripts.
 core/          generic framework utilities
 experiments/   config-driven orchestration and run artifacts
 data/          tokenizer, dataset, dataloader components
-modules/       attention, MLP, norm, block, position encoding
+modules/       algorithm packages with one file per technique
 models/        model families and model factories
 training/      losses, optimizers, schedulers, trainer entry points
 inference/     samplers, KV cache, generation engines
@@ -18,10 +18,42 @@ backend/       runtime adapters such as torch, llama.cpp, ONNX, MLC
 benchmark/     benchmark suites and metric collectors
 integrations/  thin local adapters for external projects
 external_projects/ independent workspace for external source checkouts
+tests/         unit tests and manual debug probes
 ```
 
 `core/` and `experiments/` should stay small and domain-agnostic. Algorithm code
 belongs in domain packages.
+
+## Module Layout Rule
+
+Do not keep a whole technical family in one large file. Use one package per
+domain and one file per technique.
+
+Example:
+
+```text
+modules/attention/
+├── registry.py
+├── base.py
+├── mha.py
+├── mqa.py
+├── gqa.py
+├── mla.py
+├── sliding_window.py
+└── sparse.py
+```
+
+The package `__init__.py` should only expose public imports and load built-ins.
+The registry and factory live in `registry.py`. Shared utilities live in
+`base.py`.
+
+Tests are separate from usable modules:
+
+```text
+tests/
+├── unit/     stable automated tests
+└── debug/    manually runnable debug probes
+```
 
 ## Component Rule
 
