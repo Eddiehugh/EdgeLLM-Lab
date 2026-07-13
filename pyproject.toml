@@ -12,6 +12,17 @@ dependencies = [
   "PyYAML",
 ]
 
+[project.optional-dependencies]
+hf = ["huggingface_hub>=0.31"]
+clearml = ["clearml>=1.16"]
+s3 = ["fsspec>=2024.6", "s3fs>=2024.6"]
+cloud = [
+  "huggingface_hub>=0.31",
+  "clearml>=1.16",
+  "fsspec>=2024.6",
+  "s3fs>=2024.6",
+]
+
 [project.scripts]
 edgellm = "cli:main"
 
@@ -27,10 +38,12 @@ include = [
   "core*",
   "data*",
   "experiments*",
+  "execution*",
   "integrations*",
   "inference*",
   "models*",
   "modules*",
+  "reproduction*",
   "training*",
 ]
 exclude = ["external_projects*", "runs*", "tests*"]

@@ -1,0 +1,36 @@
+# Replace SSH connection values with the values shown by your AutoDL instance.
+experiment:
+  name: autodl-tiny-gpt
+runtime: {device: cuda, seed: 42}
+model:
+  name: tiny_gpt
+  vocab_size: 256
+  hidden_size: 128
+  num_layers: 4
+  num_heads: 4
+  max_position_embeddings: 128
+data: {tokenizer_type: char, text: "EdgeLLM Lab AutoDL experiment repeated for a valid batch. EdgeLLM Lab.\n", block_size: 16}
+loss: {type: causal_lm}
+training:
+  batch_size: 4
+  learning_rate: 0.0003
+  max_steps: 100
+  optimizer: {type: adamw}
+  scheduler: {type: constant}
+
+execution:
+  executor:
+    type: autodl
+    host: your-autodl-host
+    user: root
+    port: 22
+    identity_file: ~/.ssh/id_ed25519
+    remote_root: /root/autodl-tmp/edgellm-jobs
+  runtime:
+    type: native
+    python: python3
+  artifact_store:
+    type: local
+    root: /root/autodl-tmp/edgellm-artifacts
+  source:
+    require_clean: true

@@ -40,7 +40,9 @@ training:
   learning_rate: 0.001
   max_steps: 2
   optimizer:
-    type: adamw
+    algorithm: adamw
+    implementation: torch
+    param_group_policy: all
     weight_decay: 0.0
   scheduler:
     type: constant

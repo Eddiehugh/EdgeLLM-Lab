@@ -8,6 +8,8 @@ or inference scripts.
 ```text
 core/          generic framework utilities
 experiments/   config-driven orchestration and run artifacts
+execution/     provider-neutral job lifecycle, runtime, artifact, and metadata control plane
+reproduction/  paper contracts, recipe suites, claim evaluation, and study reports
 data/          tokenizer, dataset, dataloader components
 modules/       algorithm packages with one file per technique
 models/        model families and model factories
@@ -53,9 +55,16 @@ Tests are separate from usable modules:
 
 ```text
 tests/
-├── unit/     stable automated tests
+├── unit/     stable behavioral tests
+├── parity/   numerical comparison with mature implementations
 └── debug/    manually runnable debug probes
 ```
+
+Optimizers have additional independent axes because an update equation, a
+parameter routing rule, and a fused/distributed backend are different research
+variables. Keep readable algorithms in `training/optimizers/reference/`,
+mature implementations in `adapters/`, and parameter grouping in `policies/`.
+See [Optimizer Architecture](OPTIMIZERS.md).
 
 ## Component Rule
 
@@ -118,6 +127,41 @@ pipeline:
 Future evaluation, compression, export, deployment, and benchmark workflows
 should be new stages or new stage sequences, not conditionals added to the
 runner.
+
+## Execution Rule
+
+`ExperimentRunner` defines what an experiment does. `RunManager` defines where
+the unchanged experiment runs. Provider SDKs may only appear in
+`execution/executors/`; they must not be imported by algorithm modules or
+experiment stages.
+
+Keep four independent extension points:
+
+1. `Executor`: submit, status, logs, cancel, and provider-specific fetch.
+2. `Runtime`: native process or container isolation.
+3. `ArtifactStore`: durable checkpoints, metrics, reports, and exports.
+4. `MetadataStore`: small job specifications and lifecycle records.
+
+All automated providers invoke `execution.worker`, which calls the normal
+experiment runner. Adding another cloud provider therefore requires a new
+Executor, not another training entry point.
+
+## Paper Reproduction Rule
+
+A paper reproduction is a study over normal experiment recipes, not a new
+runner. Keep framework code in `reproduction/` and per-paper content in
+`paper_reproductions/<paper-id>/`.
+
+Each paper must separate:
+
+1. Metadata and claims in `paper.yaml`.
+2. Baseline/proposed and smoke/full configurations in `recipes/`.
+3. Only paper-specific components or stages in `implementation/`.
+4. Correctness tests in `tests/` and methodological differences in `notes/`.
+
+Paper claims need executable expectations before they can pass. Upstream
+repositories remain in `external_projects/` and are referenced by immutable
+revisions.
 
 ## Extension Rule
 

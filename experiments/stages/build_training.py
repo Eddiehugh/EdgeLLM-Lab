@@ -9,10 +9,13 @@ from experiments.stages.common import selected_name
 from training import (
     LOSS_REGISTRY,
     OPTIMIZER_REGISTRY,
+    PARAM_GROUP_POLICY_REGISTRY,
     SCHEDULER_REGISTRY,
     build_loss,
     build_optimizer,
     build_scheduler,
+    resolve_optimizer_name,
+    resolve_param_group_policy_name,
 )
 
 
@@ -42,10 +45,20 @@ class BuildTrainingStage(ExperimentStage):
         if isinstance(optimizer_cfg, dict) and "lr" not in optimizer_cfg:
             optimizer_cfg = dict(optimizer_cfg)
             optimizer_cfg["lr"] = training_cfg.get("learning_rate", 3e-4)
-        optimizer = build_optimizer(optimizer_cfg, params=model.parameters())
+        optimizer = build_optimizer(optimizer_cfg, model=model)
         context.provide("optimizer", optimizer)
         context.track_component(
-            "optimizer", OPTIMIZER_REGISTRY, selected_name(optimizer_cfg, "adamw")
+            "optimizer", OPTIMIZER_REGISTRY, resolve_optimizer_name(optimizer_cfg)
+        )
+        param_group_policy_cfg = (
+            optimizer_cfg.get("param_group_policy")
+            if isinstance(optimizer_cfg, dict)
+            else None
+        )
+        context.track_component(
+            "optimizer_param_group_policy",
+            PARAM_GROUP_POLICY_REGISTRY,
+            resolve_param_group_policy_name(param_group_policy_cfg),
         )
 
         scheduler_cfg = training_cfg.get("scheduler", {"type": "constant"})

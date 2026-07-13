@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 from typing import Any
 
 from core.config import load_config, with_overrides
+from execution import JobState, RunManager
+from execution.metadata import JsonMetadataStore
 from experiments import normalize_experiment_config, run_experiment
 from integrations import build_integration, integration_snapshot
+from reproduction import PaperStudyManager, PaperWorkspace
 
 
 def _load_config_with_overrides(args: argparse.Namespace) -> dict[str, Any]:
@@ -46,7 +50,12 @@ def _component_registries():
         NORM_REGISTRY,
         POSITION_ENCODING_REGISTRY,
     )
-    from training import LOSS_REGISTRY, OPTIMIZER_REGISTRY, SCHEDULER_REGISTRY
+    from training import (
+        LOSS_REGISTRY,
+        OPTIMIZER_REGISTRY,
+        PARAM_GROUP_POLICY_REGISTRY,
+        SCHEDULER_REGISTRY,
+    )
 
     return {
         "attention": ATTENTION_REGISTRY,
@@ -58,6 +67,7 @@ def _component_registries():
         "model": MODEL_REGISTRY,
         "loss": LOSS_REGISTRY,
         "optimizer": OPTIMIZER_REGISTRY,
+        "optimizer_param_group_policy": PARAM_GROUP_POLICY_REGISTRY,
         "scheduler": SCHEDULER_REGISTRY,
         "sampler": SAMPLER_REGISTRY,
         "kv_cache": KV_CACHE_REGISTRY,
@@ -82,6 +92,166 @@ def train_command(args: argparse.Namespace) -> int:
     result = run_experiment(_load_config_with_overrides(args))
     print(json.dumps(result, indent=2, ensure_ascii=False))
     return 0
+
+
+def _run_manager(args: argparse.Namespace) -> RunManager:
+    metadata_root = getattr(args, "metadata_root", None)
+    if metadata_root:
+        return RunManager(metadata_store=JsonMetadataStore(metadata_root))
+    return RunManager()
+
+
+def submit_command(args: argparse.Namespace) -> int:
+    manager = _run_manager(args)
+    record = manager.submit(_load_config_with_overrides(args))
+    if args.wait:
+        record = manager.wait(
+            record.job_id,
+            poll_interval=args.poll_interval,
+            timeout=args.timeout,
+        )
+    print(json.dumps(record.to_dict(), indent=2, ensure_ascii=False))
+    if args.wait and record.state == JobState.FAILED:
+        return 1
+    return 0
+
+
+def job_status_command(args: argparse.Namespace) -> int:
+    record = _run_manager(args).status(args.job_id)
+    print(json.dumps(record.to_dict(), indent=2, ensure_ascii=False))
+    return 0
+
+
+def job_logs_command(args: argparse.Namespace) -> int:
+    print(_run_manager(args).logs(args.job_id, tail=args.tail))
+    return 0
+
+
+def cancel_job_command(args: argparse.Namespace) -> int:
+    record = _run_manager(args).cancel(args.job_id)
+    print(json.dumps(record.to_dict(), indent=2, ensure_ascii=False))
+    return 0
+
+
+def fetch_job_command(args: argparse.Namespace) -> int:
+    destination = args.output or str(Path("downloads") / args.job_id)
+    path = _run_manager(args).fetch(args.job_id, destination)
+    print(str(path))
+    return 0
+
+
+def list_jobs_command(args: argparse.Namespace) -> int:
+    records = _run_manager(args).list()
+    if args.as_json:
+        print(
+            json.dumps(
+                [record.to_dict() for record in records],
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+        return 0
+    for record in records:
+        print(
+            f"{record.job_id}  {record.state.value:<10}  "
+            f"{record.executor_type:<18}  {record.name}"
+        )
+    return 0
+
+
+def _paper_workspace(args: argparse.Namespace) -> PaperWorkspace:
+    return PaperWorkspace(root=args.paper_root)
+
+
+def _paper_study_manager(args: argparse.Namespace) -> PaperStudyManager:
+    workspace = _paper_workspace(args)
+    metadata_root = getattr(args, "metadata_root", None)
+    run_manager = None
+    if metadata_root:
+        run_manager = RunManager(
+            metadata_store=JsonMetadataStore(metadata_root),
+            project_root=workspace.project_root,
+        )
+    return PaperStudyManager(
+        workspace=workspace,
+        run_manager=run_manager,
+        state_root=getattr(args, "study_root", None),
+    )
+
+
+def paper_init_command(args: argparse.Namespace) -> int:
+    path = _paper_workspace(args).scaffold(
+        args.paper_id,
+        args.title,
+        url=args.url,
+        authors=args.author or [],
+        year=args.year,
+    )
+    print(str(path))
+    return 0
+
+
+def paper_list_command(args: argparse.Namespace) -> int:
+    papers = _paper_workspace(args).list()
+    if args.as_json:
+        print(
+            json.dumps(
+                [
+                    {
+                        "id": paper.id,
+                        "title": paper.title,
+                        "year": paper.year,
+                        "url": paper.url,
+                        "suites": sorted(paper.suites),
+                    }
+                    for paper in papers
+                ],
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
+        return 0
+    for paper in papers:
+        print(f"{paper.id:<28} {paper.year or '-':<6} {paper.title}")
+    return 0
+
+
+def paper_info_command(args: argparse.Namespace) -> int:
+    paper = _paper_workspace(args).load(args.paper_id)
+    print(json.dumps(paper.manifest, indent=2, ensure_ascii=False))
+    return 0
+
+
+def paper_validate_command(args: argparse.Namespace) -> int:
+    result = _paper_workspace(args).validate(args.paper_id)
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    return 0
+
+
+def paper_study_command(args: argparse.Namespace) -> int:
+    study = _paper_study_manager(args).run_study(
+        args.paper_id,
+        suite_name=args.suite,
+        executor=args.executor,
+        overrides=args.override or [],
+        detach=args.detach,
+        poll_interval=args.poll_interval,
+        timeout=args.timeout,
+    )
+    print(json.dumps(study, indent=2, ensure_ascii=False))
+    return 1 if study["status"] == "failed" else 0
+
+
+def paper_assess_command(args: argparse.Namespace) -> int:
+    study = _paper_study_manager(args).assess_study(
+        args.paper_id,
+        args.study_id,
+        wait=args.wait,
+        poll_interval=args.poll_interval,
+        timeout=args.timeout,
+    )
+    print(json.dumps(study, indent=2, ensure_ascii=False))
+    return 1 if study["status"] == "failed" else 0
 
 
 def list_components_command(args: argparse.Namespace) -> int:
@@ -216,6 +386,113 @@ def build_parser() -> argparse.ArgumentParser:
         help="Override config values with key=value dot paths",
     )
     train.set_defaults(func=train_command)
+
+    submit = subparsers.add_parser(
+        "submit",
+        help="Submit an experiment through a configured execution backend",
+    )
+    submit.add_argument("-c", "--config", required=True)
+    submit.add_argument("-o", "--override", action="append", default=[])
+    submit.add_argument("--wait", action="store_true")
+    submit.add_argument("--poll-interval", type=float, default=1.0)
+    submit.add_argument("--timeout", type=float, default=None)
+    submit.add_argument("--metadata-root", default=None)
+    submit.set_defaults(func=submit_command)
+
+    job_status = subparsers.add_parser("status", help="Query one submitted job")
+    job_status.add_argument("job_id")
+    job_status.add_argument("--metadata-root", default=None)
+    job_status.set_defaults(func=job_status_command)
+
+    job_logs = subparsers.add_parser("logs", help="Read provider job logs")
+    job_logs.add_argument("job_id")
+    job_logs.add_argument("--tail", type=int, default=200)
+    job_logs.add_argument("--metadata-root", default=None)
+    job_logs.set_defaults(func=job_logs_command)
+
+    cancel_job = subparsers.add_parser("cancel", help="Cancel a submitted job")
+    cancel_job.add_argument("job_id")
+    cancel_job.add_argument("--metadata-root", default=None)
+    cancel_job.set_defaults(func=cancel_job_command)
+
+    fetch_job = subparsers.add_parser("fetch", help="Fetch completed job artifacts")
+    fetch_job.add_argument("job_id")
+    fetch_job.add_argument("--output", default=None)
+    fetch_job.add_argument("--metadata-root", default=None)
+    fetch_job.set_defaults(func=fetch_job_command)
+
+    list_jobs = subparsers.add_parser("list-jobs", help="List submitted jobs")
+    list_jobs.add_argument("--json", action="store_true", dest="as_json")
+    list_jobs.add_argument("--metadata-root", default=None)
+    list_jobs.set_defaults(func=list_jobs_command)
+
+    paper = subparsers.add_parser(
+        "paper",
+        help="Scaffold, validate, and run paper reproduction studies",
+    )
+    paper_commands = paper.add_subparsers(dest="paper_command", required=True)
+
+    paper_init = paper_commands.add_parser(
+        "init", help="Create an isolated paper reproduction workspace"
+    )
+    paper_init.add_argument("paper_id")
+    paper_init.add_argument("--title", required=True)
+    paper_init.add_argument("--url", default=None)
+    paper_init.add_argument("--author", action="append", default=[])
+    paper_init.add_argument("--year", type=int, default=None)
+    paper_init.add_argument("--paper-root", default="paper_reproductions")
+    paper_init.set_defaults(func=paper_init_command)
+
+    paper_list = paper_commands.add_parser("list", help="List paper workspaces")
+    paper_list.add_argument("--json", action="store_true", dest="as_json")
+    paper_list.add_argument("--paper-root", default="paper_reproductions")
+    paper_list.set_defaults(func=paper_list_command)
+
+    paper_info = paper_commands.add_parser("info", help="Show a paper manifest")
+    paper_info.add_argument("paper_id")
+    paper_info.add_argument("--paper-root", default="paper_reproductions")
+    paper_info.set_defaults(func=paper_info_command)
+
+    paper_validate = paper_commands.add_parser(
+        "validate", help="Validate paper claims, suites, recipes, and configs"
+    )
+    paper_validate.add_argument("paper_id")
+    paper_validate.add_argument("--paper-root", default="paper_reproductions")
+    paper_validate.set_defaults(func=paper_validate_command)
+
+    paper_study = paper_commands.add_parser(
+        "study", help="Run one reproduction recipe suite"
+    )
+    paper_study.add_argument("paper_id")
+    paper_study.add_argument("--suite", default="smoke")
+    paper_study.add_argument("--executor", default=None)
+    paper_study.add_argument(
+        "--set",
+        action="append",
+        default=[],
+        dest="override",
+        help="Apply key=value overrides to every recipe",
+    )
+    paper_study.add_argument("--detach", action="store_true")
+    paper_study.add_argument("--poll-interval", type=float, default=1.0)
+    paper_study.add_argument("--timeout", type=float, default=None)
+    paper_study.add_argument("--paper-root", default="paper_reproductions")
+    paper_study.add_argument("--study-root", default=None)
+    paper_study.add_argument("--metadata-root", default=None)
+    paper_study.set_defaults(func=paper_study_command)
+
+    paper_assess = paper_commands.add_parser(
+        "assess", help="Refresh and assess a submitted reproduction study"
+    )
+    paper_assess.add_argument("paper_id")
+    paper_assess.add_argument("study_id")
+    paper_assess.add_argument("--wait", action="store_true")
+    paper_assess.add_argument("--poll-interval", type=float, default=1.0)
+    paper_assess.add_argument("--timeout", type=float, default=None)
+    paper_assess.add_argument("--paper-root", default="paper_reproductions")
+    paper_assess.add_argument("--study-root", default=None)
+    paper_assess.add_argument("--metadata-root", default=None)
+    paper_assess.set_defaults(func=paper_assess_command)
 
     smoke = subparsers.add_parser("smoke", help="Run a tiny CPU smoke experiment")
     smoke.add_argument("--steps", type=int, default=2)

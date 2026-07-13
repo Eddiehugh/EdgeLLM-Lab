@@ -9,6 +9,7 @@ venv/
 .eggs/
 *.egg-info/
 .DS_Store
+.edgellm/
 runs/
 checkpoints/
 artifacts/

@@ -1,0 +1,40 @@
+# Install `pip install -e '.[hf]'`, authenticate, and replace repo_id.
+experiment:
+  name: hf-jobs-tiny-gpt
+runtime: {device: cuda, seed: 42}
+model:
+  name: tiny_gpt
+  vocab_size: 256
+  hidden_size: 128
+  num_layers: 4
+  num_heads: 4
+  max_position_embeddings: 128
+data: {tokenizer_type: char, text: "EdgeLLM Lab Hugging Face Jobs repeated for a valid training batch.\n", block_size: 16}
+loss: {type: causal_lm}
+training:
+  batch_size: 4
+  learning_rate: 0.0003
+  max_steps: 100
+  optimizer: {type: adamw}
+  scheduler: {type: constant}
+
+execution:
+  executor:
+    type: huggingface_jobs
+    flavor: a10g-small
+    timeout: 2h
+    token_env: HF_TOKEN
+    secrets:
+      HF_TOKEN: HF_TOKEN
+  runtime:
+    type: docker
+    image: pytorch/pytorch:2.4.1-cuda12.4-cudnn9-runtime
+    python: python3
+  artifact_store:
+    type: huggingface_hub
+    repo_id: your-name/edgellm-artifacts
+    repo_type: dataset
+    private: true
+    token_env: HF_TOKEN
+  source:
+    require_clean: true

@@ -69,6 +69,15 @@ pipeline:
     - checkpoint
 ```
 
+Standalone research files, including paper-specific implementations, can be
+loaded without turning their directory into an installable package:
+
+```yaml
+extensions:
+  paths:
+    - paper_reproductions/my-paper/implementation/components.py
+```
+
 The stage should place reusable runtime objects in `context.objects`, scalar or
 structured measurements in `context.metrics`, and generated files in the run
 directory through `context.run`. Register every generated file with

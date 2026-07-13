@@ -35,6 +35,9 @@ EdgeLLM-Lab/
 ├── compression/             # Level 1/2: Quantization, pruning, low-rank compression
 ├── data/                    # Tokenizer, dataset, dataloader
 ├── experiments/             # Level 2: Registered stage pipeline, context, and run artifacts
+├── execution/               # Provider-neutral job, runtime, artifact, and metadata control plane
+├── reproduction/            # Level 2: Paper manifests, recipe suites, claim evaluation, reports
+├── paper_reproductions/     # Isolated per-paper code, recipes, tests, and notes
 ├── benchmark/               # Level 2: Benchmark registries and metric collectors
 ├── backend/                 # Level 3: Runtime boundaries such as Torch, llama.cpp, ONNX, MLC
 ├── integrations/            # Level 3: Thin adapters for external open-source projects
@@ -206,6 +209,37 @@ Important Level 2 metrics:
 - quantization error
 - backend runtime latency
 
+### Local and remote execution
+
+The same experiment config can run locally or through SSH/AutoDL, Hugging Face
+Jobs, ClearML, or a generated Colab notebook. Cloud adapters do not change the
+experiment pipeline.
+
+```bash
+python3 -m cli submit -c configs/execution/local.yaml --wait
+python3 -m cli list-jobs
+python3 -m cli status <job-id>
+python3 -m cli logs <job-id>
+python3 -m cli fetch <job-id>
+```
+
+See [Remote Execution](docs/REMOTE_EXECUTION.md) for the architecture, provider
+capability matrix, credentials, and configuration templates.
+
+### Paper reproduction
+
+Turn a paper into isolated baseline/proposed recipes and machine-checkable claims:
+
+```bash
+python3 -m cli paper init 2405.00001 --title "Paper Title" --url <paper-url>
+python3 -m cli paper validate 2405.00001
+python3 -m cli paper study 2405.00001 --suite smoke
+```
+
+Paper-specific code stays under `paper_reproductions/<paper-id>/`; upstream
+repositories still stay under `external_projects/`. See
+[Paper Reproduction](docs/PAPER_REPRODUCTION.md).
+
 ## Level 3: Work by Wrapping
 
 This level wraps mature projects as reusable tools while keeping their code outside the core framework.
@@ -296,4 +330,5 @@ python3 -m cli train -c configs/smoke.yaml
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Extension Guide](docs/EXTENDING.md)
+- [Optimizer Architecture](docs/OPTIMIZERS.md)
 - [Open Source Integration Workflow](docs/OPEN_SOURCE_INTEGRATION.md)

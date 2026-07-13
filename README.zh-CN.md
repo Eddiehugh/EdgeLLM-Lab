@@ -35,6 +35,9 @@ EdgeLLM-Lab/
 ├── compression/             # Level 1/2: 量化、剪枝、低秩压缩
 ├── data/                    # Tokenizer、Dataset、Dataloader
 ├── experiments/             # Level 2: 可注册 Stage 流水线、上下文和产物管理
+├── execution/               # 与云平台无关的作业、运行时、产物和元数据控制面
+├── reproduction/            # Level 2: 论文规范、Recipe Suite、Claim 评估和报告
+├── paper_reproductions/     # 每篇论文独立的实现、配方、测试和笔记
 ├── benchmark/               # Level 2: Benchmark 注册表和指标采集
 ├── backend/                 # Level 3: Torch、llama.cpp、ONNX、MLC 等运行时边界
 ├── integrations/            # Level 3: 外部开源项目的轻量适配层
@@ -202,6 +205,36 @@ Level 2 重点指标：
 - quantization error
 - backend runtime latency
 
+### 本地与远端执行
+
+同一份实验配置可以在本地、SSH/AutoDL、Hugging Face Jobs、ClearML 上运行，
+也可以生成固定 Git revision 的 Colab Notebook。云平台 adapter 不修改实验 Pipeline。
+
+```bash
+python3 -m cli submit -c configs/execution/local.yaml --wait
+python3 -m cli list-jobs
+python3 -m cli status <job-id>
+python3 -m cli logs <job-id>
+python3 -m cli fetch <job-id>
+```
+
+架构、平台能力矩阵、凭据规则和配置模板见
+[远端执行控制面](docs/REMOTE_EXECUTION.zh-CN.md)。
+
+### 论文复现
+
+把论文快速转换成隔离的 baseline/proposed recipe 和可机器判定的 claim：
+
+```bash
+python3 -m cli paper init 2405.00001 --title "论文标题" --url <paper-url>
+python3 -m cli paper validate 2405.00001
+python3 -m cli paper study 2405.00001 --suite smoke
+```
+
+论文专属代码放在 `paper_reproductions/<paper-id>/`，官方实现仍放在
+`external_projects/`。完整说明见
+[论文复现](docs/PAPER_REPRODUCTION.zh-CN.md)。
+
 ## Level 3: Work by Wrapping
 
 这一层用于封装成熟开源项目能力，但不把外部项目源码揉进本系统核心代码。
@@ -292,4 +325,5 @@ python3 -m cli train -c configs/smoke.yaml
 
 - [架构设计](docs/ARCHITECTURE.md)
 - [扩展开发指南](docs/EXTENDING.md)
+- [优化器架构](docs/OPTIMIZERS.zh-CN.md)
 - [开源项目接入流程](docs/OPEN_SOURCE_INTEGRATION.md)

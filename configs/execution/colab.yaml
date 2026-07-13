@@ -1,0 +1,36 @@
+# This backend creates a notebook; it does not pretend Colab has a job API.
+experiment:
+  name: colab-tiny-gpt
+runtime: {device: cuda, seed: 42}
+model:
+  name: tiny_gpt
+  vocab_size: 256
+  hidden_size: 128
+  num_layers: 4
+  num_heads: 4
+  max_position_embeddings: 128
+data: {tokenizer_type: char, text: "EdgeLLM Lab Colab experiment repeated for a valid training batch.\n", block_size: 16}
+loss: {type: causal_lm}
+training:
+  batch_size: 4
+  learning_rate: 0.0003
+  max_steps: 100
+  optimizer: {type: adamw}
+  scheduler: {type: constant}
+
+execution:
+  executor:
+    type: colab
+    secrets:
+      HF_TOKEN: HF_TOKEN
+  runtime:
+    type: native
+    python: python3
+  artifact_store:
+    type: huggingface_hub
+    repo_id: your-name/edgellm-artifacts
+    repo_type: dataset
+    private: true
+    token_env: HF_TOKEN
+  source:
+    require_clean: true
