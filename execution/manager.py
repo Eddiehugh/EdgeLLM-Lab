@@ -220,6 +220,19 @@ class RunManager:
             raise TypeError(f"execution.{key} must be a mapping")
         return dict(value)
 
+    def _executor(self, spec: JobSpec):
+        config = dict(spec.executor_config)
+        profile_name = config.pop("credential_profile", None)
+        if profile_name:
+            profile = self.connections.get(str(profile_name))
+            password = profile.get("password")
+            if not password:
+                raise ValueError(
+                    f"Connection profile '{profile_name}' no longer contains a password"
+                )
+            config["password"] = password
+        return build_executor(spec.executor_type, config)
+
     def build_spec(self, config: Mapping[str, Any]) -> JobSpec:
         raw_execution = config.get("execution", {})
         if not isinstance(raw_execution, Mapping):
@@ -239,7 +252,16 @@ class RunManager:
 
         executor_config = self._section(execution, "executor")
         executor_type = str(executor_config.pop("type", "local"))
+        profile_name = executor_config.get("profile")
         executor_config = self.connections.resolve(executor_config)
+        if "password" in executor_config:
+            if not profile_name:
+                raise ValueError(
+                    "SSH passwords must be stored in a named connection profile, not "
+                    "in an experiment config"
+                )
+            executor_config.pop("password")
+            executor_config["credential_profile"] = str(profile_name)
         runtime_config = self._section(execution, "runtime")
         runtime_type = str(runtime_config.pop("type", "native"))
         default_python = sys.executable if executor_type == "local" else "python3"
@@ -306,7 +328,7 @@ class RunManager:
 
     def submit(self, config: Mapping[str, Any]) -> JobRecord:
         spec = self.build_spec(config)
-        executor = build_executor(spec.executor_type, spec.executor_config)
+        executor = self._executor(spec)
         record = executor.submit(spec)
         record.artifact_uri = build_artifact_store(spec.artifact_store).uri_for(
             spec.job_id
@@ -317,7 +339,7 @@ class RunManager:
     def status(self, job_id: str) -> JobRecord:
         record = self.metadata.load(job_id)
         spec = JobSpec.from_dict(record.spec)
-        executor = build_executor(record.executor_type, spec.executor_config)
+        executor = self._executor(spec)
         record = executor.status(record)
         self.metadata.save(record)
         return record
@@ -325,16 +347,12 @@ class RunManager:
     def logs(self, job_id: str, tail: int = 200) -> str:
         record = self.metadata.load(job_id)
         spec = JobSpec.from_dict(record.spec)
-        return build_executor(record.executor_type, spec.executor_config).logs(
-            record, tail=tail
-        )
+        return self._executor(spec).logs(record, tail=tail)
 
     def cancel(self, job_id: str) -> JobRecord:
         record = self.metadata.load(job_id)
         spec = JobSpec.from_dict(record.spec)
-        record = build_executor(
-            record.executor_type, spec.executor_config
-        ).cancel(record)
+        record = self._executor(spec).cancel(record)
         self.metadata.save(record)
         return record
 
@@ -346,7 +364,7 @@ class RunManager:
                 "after completion"
             )
         spec = JobSpec.from_dict(record.spec)
-        executor = build_executor(record.executor_type, spec.executor_config)
+        executor = self._executor(spec)
         provider_result = executor.fetch(record, destination)
         if provider_result is not None:
             return provider_result

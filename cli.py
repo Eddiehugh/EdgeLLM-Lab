@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,7 @@ from execution import (
     JobState,
     RunManager,
     parse_ssh_command,
+    redact_connection,
 )
 from execution.executors.ssh import SSHExecutor
 from execution.metadata import JsonMetadataStore
@@ -180,6 +182,15 @@ def connection_set_command(args: argparse.Namespace) -> int:
         value = getattr(args, key)
         if value is not None:
             values[key] = value
+    if args.password:
+        password = getpass.getpass("SSH password: ")
+        if not password:
+            raise ValueError("SSH password must not be empty")
+        values["password"] = password
+    if args.clear_password:
+        values["password"] = None
+    if args.clear_identity_file:
+        values["identity_file"] = None
     if args.accept_new_host_key:
         try:
             existing_options = list(store.get(args.name).get("ssh_options", []))
@@ -195,7 +206,11 @@ def connection_set_command(args: argparse.Namespace) -> int:
     profile = store.set(args.name, values)
     print(
         json.dumps(
-            {"name": args.name, "store": str(store.path), "connection": profile},
+            {
+                "name": args.name,
+                "store": str(store.path),
+                "connection": redact_connection(profile),
+            },
             indent=2,
             ensure_ascii=False,
         )
@@ -210,7 +225,7 @@ def connection_show_command(args: argparse.Namespace) -> int:
             {
                 "name": args.name,
                 "store": str(store.path),
-                "connection": store.get(args.name),
+                "connection": redact_connection(store.get(args.name)),
             },
             indent=2,
             ensure_ascii=False,
@@ -223,7 +238,16 @@ def connection_list_command(args: argparse.Namespace) -> int:
     store = _connection_store(args)
     profiles = store.list()
     if args.as_json:
-        print(json.dumps(profiles, indent=2, ensure_ascii=False))
+        print(
+            json.dumps(
+                {
+                    name: redact_connection(profile)
+                    for name, profile in profiles.items()
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
         return 0
     if not profiles:
         print(f"No connection profiles in {store.path}")
@@ -540,6 +564,21 @@ def build_parser() -> argparse.ArgumentParser:
     connection_set.add_argument("--user", default=None)
     connection_set.add_argument("--port", type=int, default=None)
     connection_set.add_argument("--identity-file", default=None)
+    connection_set.add_argument(
+        "--password",
+        action="store_true",
+        help="Prompt for and store an SSH password in the private local profile",
+    )
+    connection_set.add_argument(
+        "--clear-password",
+        action="store_true",
+        help="Remove the stored password",
+    )
+    connection_set.add_argument(
+        "--clear-identity-file",
+        action="store_true",
+        help="Remove the configured SSH identity file",
+    )
     connection_set.add_argument(
         "--accept-new-host-key",
         action="store_true",

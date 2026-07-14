@@ -5,9 +5,14 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
-from execution import ConnectionProfileStore, RunManager, parse_ssh_command
-from execution.executors.ssh import SSHExecutor
+from execution import (
+    ConnectionProfileStore,
+    RunManager,
+    parse_ssh_command,
+    redact_connection,
+)
 from execution.executors.ssh import SSHExecutor
 from execution.metadata import JsonMetadataStore
 
@@ -16,6 +21,45 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 class ConnectionProfileTest(unittest.TestCase):
+    def test_password_is_stored_privately_and_redacted_for_display(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "connections.json"
+            store = ConnectionProfileStore(path)
+            stored = store.set(
+                "autodl-main",
+                {
+                    "host": "example.com",
+                    "user": "root",
+                    "password": "local-secret",
+                },
+            )
+
+            self.assertEqual(store.get("autodl-main")["password"], "local-secret")
+            self.assertEqual(redact_connection(stored)["password"], "********")
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_password_auth_uses_sshpass_without_putting_secret_in_argv(self) -> None:
+        executor = SSHExecutor(
+            {
+                "host": "example.com",
+                "user": "root",
+                "password": "local-secret",
+            }
+        )
+        completed = mock.Mock(stdout="ok")
+        with mock.patch(
+            "execution.executors.ssh.shutil.which", return_value="/sshpass"
+        ):
+            with mock.patch(
+                "execution.executors.ssh.subprocess.run", return_value=completed
+            ) as run:
+                self.assertEqual(executor._ssh("true"), "ok")
+
+        argv = run.call_args.args[0]
+        self.assertEqual(argv[:3], ["/sshpass", "-e", "ssh"])
+        self.assertNotIn("local-secret", argv)
+        self.assertEqual(run.call_args.kwargs["env"]["SSHPASS"], "local-secret")
+
     def test_probe_reports_missing_identity_before_connecting(self) -> None:
         executor = SSHExecutor(
             {
@@ -94,6 +138,41 @@ class ConnectionProfileTest(unittest.TestCase):
                 "/root/autodl-tmp/edgellm-jobs",
             )
             self.assertNotIn("profile", spec.executor_config)
+
+    def test_password_is_referenced_but_not_serialized_in_job_spec(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            connections = ConnectionProfileStore(root / "connections.json")
+            connections.set(
+                "autodl-main",
+                {
+                    "host": "region.autodl.com",
+                    "user": "root",
+                    "port": 12345,
+                    "password": "local-secret",
+                },
+            )
+            manager = RunManager(
+                metadata_store=JsonMetadataStore(root / "jobs"),
+                project_root=PROJECT_ROOT,
+                connection_store=connections,
+            )
+            spec = manager.build_spec(
+                {
+                    "experiment": {"name": "password-profile"},
+                    "execution": {
+                        "executor": {"type": "autodl", "profile": "autodl-main"},
+                        "source": {"require_clean": False},
+                    },
+                }
+            )
+
+            self.assertNotIn("password", spec.executor_config)
+            self.assertEqual(
+                spec.executor_config["credential_profile"], "autodl-main"
+            )
+            self.assertNotIn("local-secret", str(spec.to_dict()))
+            self.assertEqual(manager._executor(spec).config["password"], "local-secret")
 
     def test_identity_path_and_advanced_options_apply_to_ssh_and_scp(self):
         executor = SSHExecutor(

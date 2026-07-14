@@ -9,12 +9,14 @@ artifacts. It does not import or copy nanochat source into the framework.
 
 ## Run the baseline
 
-Configure key-based SSH whenever AutoDL changes the endpoint:
+Install `sshpass`, then configure password authentication whenever AutoDL changes the
+endpoint:
 
 ```bash
+brew install sshpass
 python3 -m cli connection set autodl-main \
   --ssh-command "ssh -p <PORT> root@<HOST>" \
-  --identity-file ~/.ssh/id_ed25519 \
+  --password --clear-identity-file \
   --accept-new-host-key
 python3 -m cli connection test autodl-main
 ```

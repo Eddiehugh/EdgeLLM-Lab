@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import shlex
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -14,6 +16,25 @@ from execution.specs import JobRecord, JobSpec, JobState
 
 
 class SSHExecutor(Executor):
+    def _password_prefix(self) -> list[str]:
+        if not self.config.get("password"):
+            return []
+        executable = shutil.which("sshpass")
+        if executable is None:
+            raise RuntimeError(
+                "Password authentication requires sshpass. Install it with "
+                "`brew install sshpass` on macOS."
+            )
+        return [executable, "-e"]
+
+    def _subprocess_env(self) -> dict[str, str] | None:
+        password = self.config.get("password")
+        if not password:
+            return None
+        environment = os.environ.copy()
+        environment["SSHPASS"] = str(password)
+        return environment
+
     def _target(self) -> str:
         host = self.config.get("host")
         if not host:
@@ -25,7 +46,7 @@ class SSHExecutor(Executor):
         options: list[str] = []
         if self.config.get("port"):
             options.extend(["-p", str(self.config["port"])])
-        if self.config.get("identity_file"):
+        if self.config.get("identity_file") and not self.config.get("password"):
             identity = Path(str(self.config["identity_file"])).expanduser()
             options.extend(["-i", str(identity)])
         options.extend(str(value) for value in self.config.get("ssh_options", []))
@@ -35,7 +56,7 @@ class SSHExecutor(Executor):
         options: list[str] = []
         if self.config.get("port"):
             options.extend(["-P", str(self.config["port"])])
-        if self.config.get("identity_file"):
+        if self.config.get("identity_file") and not self.config.get("password"):
             identity = Path(str(self.config["identity_file"])).expanduser()
             options.extend(["-i", str(identity)])
         options.extend(str(value) for value in self.config.get("ssh_options", []))
@@ -45,7 +66,7 @@ class SSHExecutor(Executor):
         """Verify the endpoint and return basic remote identity information."""
 
         identity_file = self.config.get("identity_file")
-        if identity_file:
+        if identity_file and not self.config.get("password"):
             identity = Path(str(identity_file)).expanduser()
             if not identity.is_file():
                 raise FileNotFoundError(
@@ -61,10 +82,17 @@ class SSHExecutor(Executor):
 
     def _ssh(self, command: str, *, check: bool = True) -> str:
         result = subprocess.run(
-            ["ssh", *self._ssh_options(), self._target(), command],
+            [
+                *self._password_prefix(),
+                "ssh",
+                *self._ssh_options(),
+                self._target(),
+                command,
+            ],
             check=check,
             text=True,
             capture_output=True,
+            env=self._subprocess_env(),
             timeout=float(self.config.get("command_timeout", 120)),
         )
         return result.stdout.strip()
@@ -108,12 +136,14 @@ class SSHExecutor(Executor):
         self._ssh(f"mkdir -p {shlex.quote(remote_workspace)}")
         subprocess.run(
             [
+                *self._password_prefix(),
                 "scp",
                 *self._scp_options(),
                 str(local_spec_path),
                 f"{self._target()}:{remote_spec_path}",
             ],
             check=True,
+            env=self._subprocess_env(),
             timeout=float(self.config.get("command_timeout", 120)),
         )
 
@@ -209,6 +239,7 @@ class SSHExecutor(Executor):
         target.parent.mkdir(parents=True, exist_ok=True)
         subprocess.run(
             [
+                *self._password_prefix(),
                 "scp",
                 *self._scp_options(),
                 "-r",
@@ -216,6 +247,7 @@ class SSHExecutor(Executor):
                 str(target),
             ],
             check=True,
+            env=self._subprocess_env(),
             timeout=float(self.config.get("fetch_timeout", 3600)),
         )
         return target

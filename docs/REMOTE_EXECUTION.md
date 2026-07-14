@@ -51,6 +51,21 @@ python3 -m cli connection set autodl-main \
 python3 -m cli connection test autodl-main
 ```
 
+For local password-based authentication, install `sshpass` and store the password in
+the private profile through a hidden prompt:
+
+```bash
+brew install sshpass
+python3 -m cli connection set autodl-main \
+  --ssh-command "ssh -p 35394 root@region-1.autodl.com" \
+  --password --clear-identity-file --accept-new-host-key
+python3 -m cli connection test autodl-main
+```
+
+The password is plaintext in the Git-ignored, mode-`600` profile file and redacted in
+CLI output. It is injected locally through `sshpass -e`; YAML, `JobSpec`, job history,
+and remote files contain only the local credential profile name.
+
 Configs reference `execution.executor.profile: autodl-main`. Profiles are kept
 in the gitignored `.edgellm/connections.json` with mode `600` and are resolved
 into each immutable JobSpec at submission time.

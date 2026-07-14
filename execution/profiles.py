@@ -18,8 +18,10 @@ CONNECTION_KEYS = {
     "user",
     "port",
     "identity_file",
+    "password",
     "ssh_options",
 }
+REDACTED_VALUE = "********"
 
 
 def parse_ssh_command(command: str) -> dict[str, Any]:
@@ -102,12 +104,25 @@ def _validate_connection(profile: Mapping[str, Any]) -> dict[str, Any]:
         result["port"] = port
     if "identity_file" in result:
         result["identity_file"] = str(result["identity_file"])
+    if "password" in result:
+        password = result["password"]
+        if not isinstance(password, str) or not password:
+            raise ValueError("Connection profile password must be a non-empty string")
     if "ssh_options" in result:
         options = result["ssh_options"]
         if not isinstance(options, list) or not all(
             isinstance(value, str) for value in options
         ):
             raise TypeError("Connection profile ssh_options must be a list of strings")
+    return result
+
+
+def redact_connection(profile: Mapping[str, Any]) -> dict[str, Any]:
+    """Return a display-safe copy of a connection profile."""
+
+    result = dict(profile)
+    if "password" in result:
+        result["password"] = REDACTED_VALUE
     return result
 
 
@@ -186,7 +201,12 @@ class ConnectionProfileStore:
     def set(self, name: str, values: Mapping[str, Any]) -> dict[str, Any]:
         name = self._validate_name(name)
         profiles = self._load()
-        merged = {**profiles.get(name, {}), **dict(values)}
+        merged = dict(profiles.get(name, {}))
+        for key, value in values.items():
+            if value is None:
+                merged.pop(key, None)
+            else:
+                merged[key] = value
         profile = _validate_connection(merged)
         profiles[name] = profile
         self._write(profiles)
