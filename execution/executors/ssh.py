@@ -26,7 +26,8 @@ class SSHExecutor(Executor):
         if self.config.get("port"):
             options.extend(["-p", str(self.config["port"])])
         if self.config.get("identity_file"):
-            options.extend(["-i", str(self.config["identity_file"])])
+            identity = Path(str(self.config["identity_file"])).expanduser()
+            options.extend(["-i", str(identity)])
         options.extend(str(value) for value in self.config.get("ssh_options", []))
         return options
 
@@ -35,8 +36,28 @@ class SSHExecutor(Executor):
         if self.config.get("port"):
             options.extend(["-P", str(self.config["port"])])
         if self.config.get("identity_file"):
-            options.extend(["-i", str(self.config["identity_file"])])
+            identity = Path(str(self.config["identity_file"])).expanduser()
+            options.extend(["-i", str(identity)])
+        options.extend(str(value) for value in self.config.get("ssh_options", []))
         return options
+
+    def probe(self) -> dict[str, str]:
+        """Verify the endpoint and return basic remote identity information."""
+
+        identity_file = self.config.get("identity_file")
+        if identity_file:
+            identity = Path(str(identity_file)).expanduser()
+            if not identity.is_file():
+                raise FileNotFoundError(
+                    f"SSH identity file does not exist: {identity}. Create a key and "
+                    "install its public key on the remote instance first."
+                )
+        output = self._ssh(
+            "printf 'edgellm-connection-ok\\n'; "
+            "printf 'hostname='; hostname; "
+            "printf 'working_directory='; pwd"
+        )
+        return {"target": self._target(), "output": output}
 
     def _ssh(self, command: str, *, check: bool = True) -> str:
         result = subprocess.run(

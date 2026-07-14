@@ -1,0 +1,58 @@
+# First end-to-end acceptance run for an AutoDL RTX 4090-class instance.
+# The local checkout stays independent under external_projects/nanochat.
+experiment:
+  name: nanochat-autodl-smoke
+
+execution:
+  executor:
+    type: autodl
+    profile: autodl-main
+    remote_root: /root/autodl-tmp/edgellm-jobs
+  runtime:
+    type: native
+    python: python3
+  artifact_store:
+    type: local
+    # Prefer /root/autodl-fs/EdgeLLM-Lab/artifacts when AutoDL File Storage is mounted.
+    root: /root/autodl-tmp/edgellm-artifacts
+  source:
+    # Pins the EdgeLLM-Lab control-plane revision.
+    require_clean: true
+  env:
+    # Dataset/tokenizer caches are shared across jobs and are not copied as artifacts.
+    NANOCHAT_BASE_DIR: /root/autodl-tmp/edgellm-cache/nanochat-smoke-v8192
+    PYTHONUNBUFFERED: "1"
+  workload:
+    type: external_project
+    integration: nanochat
+    source:
+      # repo_url and revision are derived from this independent local Git checkout.
+      local_path: external_projects/nanochat
+      require_clean: true
+    working_directory: .
+    setup:
+      - [python3, -m, pip, install, "uv>=0.8"]
+      - [python3, -m, uv, sync, --extra, gpu, --frozen]
+      - [.venv/bin/python, -m, nanochat.dataset, -n, "1"]
+      - argv: [.venv/bin/python, -m, scripts.tok_train, --max-chars=20000000, --vocab-size=8192]
+        skip_if_exists: ${NANOCHAT_BASE_DIR}/tokenizer/token_bytes.pt
+    command:
+      - .venv/bin/python
+      - -m
+      - scripts.base_train
+      - --depth=4
+      - --head-dim=64
+      - --window-pattern=L
+      - --max-seq-len=512
+      - --device-batch-size=4
+      - --total-batch-size=2048
+      - --eval-every=-1
+      - --eval-tokens=512
+      - --core-metric-every=-1
+      - --sample-every=-1
+      - --save-every=-1
+      - --num-iterations=20
+      - --model-tag=edgellm-smoke
+      - --run=dummy
+    artifacts:
+      - ${NANOCHAT_BASE_DIR}/base_checkpoints/edgellm-smoke

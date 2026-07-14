@@ -56,17 +56,89 @@ python3 -m cli fetch <job-id> --output downloads/<job-id>
 python3 -m execution.worker
 ```
 
-Worker 调用现有 `ExperimentRunner`，然后发布完整 run 目录。因此本地与云端得到相同的 `config.yaml`、`metrics.json`、`manifest.json`、`report.md` 和 checkpoint 格式。
+Worker 根据 `WorkloadSpec` 分发任务：内置实验调用 `ExperimentRunner`；独立开源项目
+从固定 Git revision checkout 后执行结构化 setup/command，并只收集声明的产物路径。
+两种模式都生成 `metrics.json`、`manifest.json` 和 `report.md`，但不会强迫外部项目
+采用 EdgeLLM-Lab 的内部模型接口。
 
 ## 后端配置
 
 - Local：`configs/execution/local.yaml`
 - AutoDL：`configs/execution/autodl.yaml`
+- AutoDL + nanochat：`configs/execution/autodl_nanochat_smoke.yaml`
 - Hugging Face Jobs：`configs/execution/huggingface_jobs.yaml`
 - ClearML：`configs/execution/clearml.yaml`
 - Colab：`configs/execution/colab.yaml`
 
 AutoDL 没有必要单独发明协议。它是带持久磁盘的 SSH 机器，因此复用 `SSHExecutor`，默认工作目录是 `/root/autodl-tmp/edgellm-jobs`。
+
+### AutoDL 动态 SSH 连接
+
+实验配置不保存会随实例变化的 host 和 port，只引用本机私有 Profile：
+
+```yaml
+execution:
+  executor:
+    type: autodl
+    profile: autodl-main
+    remote_root: /root/autodl-tmp/edgellm-jobs
+```
+
+第一次创建实例，或更换实例后，直接粘贴 AutoDL 显示的 SSH 命令：
+
+```bash
+python3 -m cli connection set autodl-main \
+  --ssh-command "ssh -p 35394 root@region-1.autodl.com" \
+  --identity-file ~/.ssh/id_ed25519 \
+  --accept-new-host-key
+
+python3 -m cli connection test autodl-main
+python3 -m cli connection show autodl-main
+python3 -m cli connection list
+```
+
+再次换机时重复 `connection set` 即可，所有引用 `autodl-main` 的实验配置无需修改。
+连接信息保存在 `.edgellm/connections.json`，该目录已被 Git 忽略，文件权限为
+`600`。Profile 不保存 SSH 密码；应为 AutoDL 实例配置公钥认证。
+
+提交作业时 Profile 会被解析并固化进 `JobSpec`。之后更新 Profile 只影响新作业，
+不会把历史作业的 status、logs 或 fetch 请求误发到新机器。
+
+### AutoDL 数据分层与夸克备份
+
+夸克网盘由 AutoPanel 负责上传和下载，不是 Linux 挂载目录。不能把
+`remote_root` 或训练中的 checkpoint 路径直接设置为“夸克路径”。推荐分三层：
+
+```text
+/root/autodl-tmp/       热数据：当前实例训练、数据集缓存、临时 checkpoint
+/root/autodl-fs/        温数据：同地区新实例可挂载的文件存储，可选
+夸克网盘                冷数据：数据集、最终 checkpoint、报告和环境清单备份
+```
+
+AutoDL 官方建议训练前把数据从网盘复制到 `/root/autodl-tmp`，避免网盘 IO 限制。
+如果需要训练过程中持续抗实例释放，应启用 AutoDL 文件存储，并把 ArtifactStore
+配置到挂载目录：
+
+```yaml
+execution:
+  artifact_store:
+    type: local
+    root: /root/autodl-fs/EdgeLLM-Lab/artifacts
+```
+
+作业结束后，再通过 AutoPanel 把 artifact 目录上传到夸克。只使用夸克而不使用
+文件存储时，上传和恢复是手动步骤；AutoDL 当前没有在公开文档中提供可供
+Executor 调用的夸克上传 API，因此不能声称 checkpoint 已经被实时同步。
+
+新实例恢复流程：
+
+1. 使用 AutoPanel 从夸克下载数据和 artifact 到 `/root/autodl-tmp`。
+2. 执行一次 `connection set autodl-main --ssh-command "..."` 更新连接。
+3. 执行 `connection test autodl-main` 验证公钥、host 和 port。
+4. 重新提交原实验配置，或从持久 checkpoint 恢复。
+
+不要备份整个 Conda/venv 作为环境复现手段。代码由固定 Git revision 获取，Python
+依赖应由 `pyproject.toml`/lock file 重建；夸克只保存难以重新生成的大文件和实验产物。
 
 Hugging Face Jobs 和 ClearML 机器可能在任务结束后释放，所以禁止使用 `LocalArtifactStore`。必须配置 `huggingface_hub` 或 `s3`。SSH/AutoDL 可直接用 `scp` 取回结果，因此允许远端本地 Store。
 

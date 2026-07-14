@@ -225,6 +225,8 @@ python3 -m cli fetch <job-id>
 
 See [Remote Execution](docs/REMOTE_EXECUTION.md) for the architecture, provider
 capability matrix, credentials, and configuration templates.
+See [nanochat on AutoDL](docs/NANOCHAT_AUTODL.md) for the first local-edit to
+cloud-training acceptance workflow.
 
 ### Paper reproduction
 
@@ -262,6 +264,7 @@ Known integration targets:
 
 | Project | Fastest Use | Long-Term Role |
 | --- | --- | --- |
+| nanochat | Full-stack cloud training loop | External workloads, recipes, and checkpoint comparison |
 | nanoGPT | Reference for a minimal train/generate loop | Absorb simple closed-loop ideas |
 | TinyLlama | LLaMA-like architecture reference | Map configs and checkpoint structure |
 | SmolLM | Small model family baseline | Compare small-model scales and recipes |
@@ -273,7 +276,7 @@ Inspect integrations:
 ```bash
 python3 -m cli list-integrations
 python3 -m cli integration-info llama_cpp
-python3 -m cli integration-info nanogpt --local-path /path/to/nanoGPT
+python3 -m cli integration-info nanochat --local-path /path/to/nanochat
 ```
 
 ## External Project Policy
@@ -284,7 +287,7 @@ Use:
 
 ```text
 external_projects/
-├── nanogpt/repo/
+├── nanochat/
 ├── tinyllama/repo/
 ├── smollm/repo/
 ├── mobilellm/repo/

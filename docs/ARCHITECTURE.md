@@ -130,10 +130,11 @@ runner.
 
 ## Execution Rule
 
-`ExperimentRunner` defines what an experiment does. `RunManager` defines where
-the unchanged experiment runs. Provider SDKs may only appear in
-`execution/executors/`; they must not be imported by algorithm modules or
-experiment stages.
+`ExperimentRunner` defines internal experiments. `WorkloadSpec` can instead pin
+an independent external repository and structured commands. `RunManager` defines
+where either workload runs. Provider SDKs may only appear in
+`execution/executors/`; they must not be imported by algorithm modules,
+experiment stages, or external projects.
 
 Keep four independent extension points:
 
@@ -142,9 +143,9 @@ Keep four independent extension points:
 3. `ArtifactStore`: durable checkpoints, metrics, reports, and exports.
 4. `MetadataStore`: small job specifications and lifecycle records.
 
-All automated providers invoke `execution.worker`, which calls the normal
-experiment runner. Adding another cloud provider therefore requires a new
-Executor, not another training entry point.
+All automated providers invoke `execution.worker`, which dispatches either the
+normal experiment runner or an external workload. Adding another cloud provider
+therefore requires a new Executor, not another training entry point.
 
 ## Paper Reproduction Rule
 
@@ -220,14 +221,14 @@ Recommended layout:
 
 ```text
 external_projects/
-├── nanogpt/repo/
+├── nanochat/
 ├── tinyllama/repo/
 ├── smollm/repo/
 ├── mobilellm/repo/
 └── llama_cpp/repo/
 
 integrations/
-├── nanogpt/adapter.py
+├── nanochat/adapter.py
 ├── tinyllama/adapter.py
 ├── smollm/adapter.py
 ├── mobilellm/adapter.py

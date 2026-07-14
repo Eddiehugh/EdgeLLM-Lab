@@ -8,7 +8,7 @@ belong in `external_projects/<project>/repo` or another external workspace.
 
 Recommended adapters:
 
-- `nanogpt/`: minimal train/generate loop references and checkpoint conversion.
+- `nanochat/`: independent full-stack cloud training and comparison workflow.
 - `tinyllama/`: LLaMA-like architecture configs and checkpoint mapping.
 - `smollm/`: small model family configs and benchmark comparisons.
 - `mobilellm/`: edge-oriented architecture experiments.
@@ -21,7 +21,7 @@ Use:
 
 ```bash
 python3 -m cli list-integrations
-python3 -m cli integration-info nanogpt --templates
+python3 -m cli integration-info nanochat --templates
 ```
 
 See `docs/OPEN_SOURCE_INTEGRATION.md` for the full workflow.

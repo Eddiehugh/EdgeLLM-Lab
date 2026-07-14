@@ -76,13 +76,13 @@ python3 -m cli list-integrations
 Inspect one integration:
 
 ```bash
-python3 -m cli integration-info nanogpt --templates
+python3 -m cli integration-info nanochat --templates
 ```
 
 If you have a local checkout:
 
 ```bash
-python3 -m cli integration-info nanogpt --local-path /path/to/nanoGPT
+python3 -m cli integration-info nanochat --local-path /path/to/nanochat
 ```
 
 Default checkout path:

@@ -60,6 +60,46 @@ class ArtifactSpec:
 
 
 @dataclass(frozen=True)
+class CommandSpec:
+    """One argv-based command in an external workload."""
+
+    argv: tuple[str, ...]
+    skip_if_exists: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "CommandSpec":
+        values = dict(data)
+        values["argv"] = tuple(str(value) for value in values["argv"])
+        return cls(**values)
+
+
+@dataclass(frozen=True)
+class WorkloadSpec:
+    """Provider-neutral description of the code a worker executes."""
+
+    type: str = "experiment"
+    integration: str | None = None
+    source: SourceSpec | None = None
+    setup: tuple[CommandSpec, ...] = ()
+    command: CommandSpec | None = None
+    working_directory: str = "."
+    artifacts: tuple[str, ...] = ()
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "WorkloadSpec":
+        values = dict(data)
+        source = values.get("source")
+        values["source"] = SourceSpec.from_dict(source) if source else None
+        values["setup"] = tuple(
+            CommandSpec.from_dict(command) for command in values.get("setup", ())
+        )
+        command = values.get("command")
+        values["command"] = CommandSpec.from_dict(command) if command else None
+        values["artifacts"] = tuple(str(path) for path in values.get("artifacts", ()))
+        return cls(**values)
+
+
+@dataclass(frozen=True)
 class JobSpec:
     job_id: str
     name: str
@@ -70,6 +110,7 @@ class JobSpec:
     artifact_store: ArtifactSpec
     source: SourceSpec
     workspace: str
+    workload: WorkloadSpec = field(default_factory=WorkloadSpec)
     env: dict[str, str] = field(default_factory=dict)
     created_at: str = field(default_factory=utc_now)
 
@@ -82,6 +123,7 @@ class JobSpec:
         values["runtime"] = RuntimeSpec.from_dict(values["runtime"])
         values["artifact_store"] = ArtifactSpec.from_dict(values["artifact_store"])
         values["source"] = SourceSpec.from_dict(values["source"])
+        values["workload"] = WorkloadSpec.from_dict(values.get("workload", {}))
         return cls(**values)
 
 

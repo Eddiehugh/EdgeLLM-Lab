@@ -220,6 +220,8 @@ python3 -m cli fetch <job-id>
 
 架构、平台能力矩阵、凭据规则和配置模板见
 [远端执行控制面](docs/REMOTE_EXECUTION.zh-CN.md)。
+以独立 nanochat 仓库完成“本地修改、AutoDL 训练、产物取回”的首轮验收见
+[nanochat AutoDL 闭环](docs/NANOCHAT_AUTODL.zh-CN.md)。
 
 ### 论文复现
 
@@ -257,6 +259,7 @@ backend/
 
 | 项目 | 最快用途 | 长期角色 |
 | --- | --- | --- |
+| nanochat | 云上全栈训练闭环 | 外部 workload、训练配方与 checkpoint 对照 |
 | nanoGPT | 最小训练/生成闭环参考 | 吸收简单闭环思想 |
 | TinyLlama | LLaMA-like 结构参考 | 映射配置和 checkpoint 结构 |
 | SmolLM | 小模型族 baseline | 比较小模型规模和训练配方 |
@@ -268,7 +271,7 @@ backend/
 ```bash
 python3 -m cli list-integrations
 python3 -m cli integration-info llama_cpp
-python3 -m cli integration-info nanogpt --local-path /path/to/nanoGPT
+python3 -m cli integration-info nanochat --local-path /path/to/nanochat
 ```
 
 ## 外部项目管理规则
@@ -279,7 +282,7 @@ python3 -m cli integration-info nanogpt --local-path /path/to/nanoGPT
 
 ```text
 external_projects/
-├── nanogpt/repo/
+├── nanochat/
 ├── tinyllama/repo/
 ├── smollm/repo/
 ├── mobilellm/repo/

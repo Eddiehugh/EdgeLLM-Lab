@@ -1,4 +1,5 @@
-# Replace SSH connection values with the values shown by your AutoDL instance.
+# Update the private profile when AutoDL assigns a different SSH endpoint:
+# edgellm connection set autodl-main --ssh-command "ssh -p PORT root@HOST"
 experiment:
   name: autodl-tiny-gpt
 runtime: {device: cuda, seed: 42}
@@ -21,16 +22,16 @@ training:
 execution:
   executor:
     type: autodl
-    host: your-autodl-host
-    user: root
-    port: 22
-    identity_file: ~/.ssh/id_ed25519
+    profile: autodl-main
     remote_root: /root/autodl-tmp/edgellm-jobs
   runtime:
     type: native
     python: python3
   artifact_store:
     type: local
+    # Hot export directory. Upload completed job directories to Quark with
+    # AutoPanel. If AutoDL File Storage is enabled, prefer:
+    # /root/autodl-fs/EdgeLLM-Lab/artifacts
     root: /root/autodl-tmp/edgellm-artifacts
   source:
     require_clean: true

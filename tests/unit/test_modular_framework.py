@@ -73,13 +73,13 @@ class ModularFrameworkTest(unittest.TestCase):
     def test_builtin_integrations_are_discoverable(self):
         snapshot = integration_snapshot()
 
-        self.assertIn("nanogpt", snapshot)
+        self.assertIn("nanochat", snapshot)
         self.assertIn("tinyllama", snapshot)
         self.assertIn("llama_cpp", snapshot)
-        self.assertEqual(build_integration("nanogpt").name, "nanogpt")
+        self.assertEqual(build_integration("nanochat").name, "nanochat")
         self.assertTrue(
-            snapshot["nanogpt"]["expected_repo_path"].endswith(
-                "external_projects/nanogpt/repo"
+            snapshot["nanochat"]["expected_repo_path"].endswith(
+                "external_projects/nanochat"
             )
         )
 

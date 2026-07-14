@@ -23,7 +23,10 @@ python3 -m cli cancel <job-id>
 python3 -m cli fetch <job-id> --output downloads/<job-id>
 ```
 
-Every automated backend invokes the same `execution.worker`, which calls the existing `ExperimentRunner` and publishes its complete run directory. Provider code never enters the algorithm or experiment pipeline layers.
+Every automated backend invokes the same `execution.worker`. Internal workloads call
+the existing `ExperimentRunner`; external workloads checkout a pinned Git revision,
+execute structured argv commands, and collect only declared artifacts. Provider code
+never enters the algorithm or experiment pipeline layers.
 
 ## Providers
 
@@ -36,6 +39,26 @@ Every automated backend invokes the same `execution.worker`, which calls the exi
 | Colab | Reproducible notebook generation | Manual local result or remote store |
 
 Colab is deliberately prepare-only because it does not expose a stable general-purpose submit/status/cancel API. AutoDL is an SSH profile rather than a vendor-specific protocol.
+
+Keep changing AutoDL SSH endpoints in the private local connection store rather
+than experiment configs:
+
+```bash
+python3 -m cli connection set autodl-main \
+  --ssh-command "ssh -p 35394 root@region-1.autodl.com" \
+  --identity-file ~/.ssh/id_ed25519 \
+  --accept-new-host-key
+python3 -m cli connection test autodl-main
+```
+
+Configs reference `execution.executor.profile: autodl-main`. Profiles are kept
+in the gitignored `.edgellm/connections.json` with mode `600` and are resolved
+into each immutable JobSpec at submission time.
+
+AutoPanel transfers files between Quark and `/root/autodl-tmp`; Quark is not a
+mounted filesystem. Use the instance data disk for active training, optional
+AutoDL File Storage at `/root/autodl-fs` for continuously durable artifacts,
+and Quark as a cold backup. See the Chinese guide for the full migration flow.
 
 Remote jobs default to a clean-worktree requirement and a pinned Git revision. Configuration files contain secret variable names, never secret values. See the runnable templates under `configs/execution/` and the detailed [Chinese guide](REMOTE_EXECUTION.zh-CN.md).
 

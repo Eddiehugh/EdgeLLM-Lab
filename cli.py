@@ -8,7 +8,13 @@ from pathlib import Path
 from typing import Any
 
 from core.config import load_config, with_overrides
-from execution import JobState, RunManager
+from execution import (
+    ConnectionProfileStore,
+    JobState,
+    RunManager,
+    parse_ssh_command,
+)
+from execution.executors.ssh import SSHExecutor
 from execution.metadata import JsonMetadataStore
 from experiments import normalize_experiment_config, run_experiment
 from integrations import build_integration, integration_snapshot
@@ -156,6 +162,92 @@ def list_jobs_command(args: argparse.Namespace) -> int:
             f"{record.job_id}  {record.state.value:<10}  "
             f"{record.executor_type:<18}  {record.name}"
         )
+    return 0
+
+
+def _connection_store(args: argparse.Namespace) -> ConnectionProfileStore:
+    return ConnectionProfileStore(
+        args.store or Path.cwd() / ".edgellm" / "connections.json"
+    )
+
+
+def connection_set_command(args: argparse.Namespace) -> int:
+    store = _connection_store(args)
+    values: dict[str, Any] = {}
+    if args.ssh_command:
+        values.update(parse_ssh_command(args.ssh_command))
+    for key in ("host", "user", "port", "identity_file"):
+        value = getattr(args, key)
+        if value is not None:
+            values[key] = value
+    if args.accept_new_host_key:
+        try:
+            existing_options = list(store.get(args.name).get("ssh_options", []))
+        except KeyError:
+            existing_options = []
+        options = list(values.get("ssh_options", existing_options))
+        setting = ["-o", "StrictHostKeyChecking=accept-new"]
+        if setting[1] not in options:
+            options.extend(setting)
+        values["ssh_options"] = options
+    if not values:
+        raise ValueError("Provide --ssh-command or at least one connection field")
+    profile = store.set(args.name, values)
+    print(
+        json.dumps(
+            {"name": args.name, "store": str(store.path), "connection": profile},
+            indent=2,
+            ensure_ascii=False,
+        )
+    )
+    return 0
+
+
+def connection_show_command(args: argparse.Namespace) -> int:
+    store = _connection_store(args)
+    print(
+        json.dumps(
+            {
+                "name": args.name,
+                "store": str(store.path),
+                "connection": store.get(args.name),
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+    )
+    return 0
+
+
+def connection_list_command(args: argparse.Namespace) -> int:
+    store = _connection_store(args)
+    profiles = store.list()
+    if args.as_json:
+        print(json.dumps(profiles, indent=2, ensure_ascii=False))
+        return 0
+    if not profiles:
+        print(f"No connection profiles in {store.path}")
+        return 0
+    for name, profile in profiles.items():
+        user = f"{profile.get('user')}@" if profile.get("user") else ""
+        port = f":{profile.get('port')}" if profile.get("port") else ""
+        print(f"{name}: {user}{profile['host']}{port}")
+    return 0
+
+
+def connection_test_command(args: argparse.Namespace) -> int:
+    store = _connection_store(args)
+    profile = store.get(args.name)
+    profile["command_timeout"] = args.timeout
+    result = SSHExecutor(profile).probe()
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+    return 0
+
+
+def connection_remove_command(args: argparse.Namespace) -> int:
+    store = _connection_store(args)
+    store.remove(args.name)
+    print(f"Removed connection profile '{args.name}' from {store.path}")
     return 0
 
 
@@ -425,6 +517,69 @@ def build_parser() -> argparse.ArgumentParser:
     list_jobs.add_argument("--json", action="store_true", dest="as_json")
     list_jobs.add_argument("--metadata-root", default=None)
     list_jobs.set_defaults(func=list_jobs_command)
+
+    connection = subparsers.add_parser(
+        "connection",
+        help="Manage private SSH connection profiles",
+    )
+    connection_commands = connection.add_subparsers(
+        dest="connection_command",
+        required=True,
+    )
+
+    connection_set = connection_commands.add_parser(
+        "set",
+        help="Create or update a connection profile",
+    )
+    connection_set.add_argument("name")
+    connection_set.add_argument(
+        "--ssh-command",
+        help="Full login command copied from AutoDL, quoted as one argument",
+    )
+    connection_set.add_argument("--host", default=None)
+    connection_set.add_argument("--user", default=None)
+    connection_set.add_argument("--port", type=int, default=None)
+    connection_set.add_argument("--identity-file", default=None)
+    connection_set.add_argument(
+        "--accept-new-host-key",
+        action="store_true",
+        help="Use OpenSSH accept-new policy without disabling changed-key checks",
+    )
+    connection_set.add_argument("--store", default=None)
+    connection_set.set_defaults(func=connection_set_command)
+
+    connection_show = connection_commands.add_parser(
+        "show",
+        help="Show one connection profile",
+    )
+    connection_show.add_argument("name")
+    connection_show.add_argument("--store", default=None)
+    connection_show.set_defaults(func=connection_show_command)
+
+    connection_list = connection_commands.add_parser(
+        "list",
+        help="List connection profiles",
+    )
+    connection_list.add_argument("--json", action="store_true", dest="as_json")
+    connection_list.add_argument("--store", default=None)
+    connection_list.set_defaults(func=connection_list_command)
+
+    connection_test = connection_commands.add_parser(
+        "test",
+        help="Test an SSH connection profile",
+    )
+    connection_test.add_argument("name")
+    connection_test.add_argument("--timeout", type=float, default=15.0)
+    connection_test.add_argument("--store", default=None)
+    connection_test.set_defaults(func=connection_test_command)
+
+    connection_remove = connection_commands.add_parser(
+        "remove",
+        help="Remove a connection profile",
+    )
+    connection_remove.add_argument("name")
+    connection_remove.add_argument("--store", default=None)
+    connection_remove.set_defaults(func=connection_remove_command)
 
     paper = subparsers.add_parser(
         "paper",

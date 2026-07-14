@@ -20,7 +20,7 @@ def _load_builtin_integrations() -> None:
 
     import integrations.llama_cpp.adapter  # noqa: F401
     import integrations.mobilellm.adapter  # noqa: F401
-    import integrations.nanogpt.adapter  # noqa: F401
+    import integrations.nanochat.adapter  # noqa: F401
     import integrations.smollm.adapter  # noqa: F401
     import integrations.tinyllama.adapter  # noqa: F401
 
@@ -32,7 +32,7 @@ def build_integration(integration_type: str | dict, **kwargs: Any) -> Integratio
     return build_from_config(
         INTEGRATION_REGISTRY,
         integration_type,
-        default_type="nanogpt",
+        default_type="nanochat",
         **kwargs,
     )
 

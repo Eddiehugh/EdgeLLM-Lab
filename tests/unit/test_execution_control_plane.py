@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from execution import JobSpec, JobState, RunManager
+from execution import CommandSpec, JobSpec, JobState, RunManager, WorkloadSpec
 from execution.executors import build_executor
 from execution.executors.clearml import ClearMLExecutor
 from execution.executors.huggingface_jobs import HuggingFaceJobsExecutor
 from execution.metadata import JsonMetadataStore
 from execution.runtimes import build_runtime
 from execution.specs import ArtifactSpec, RuntimeSpec, SourceSpec
+from execution.worker import run_worker
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -68,6 +71,83 @@ class ExecutionControlPlaneTest(unittest.TestCase):
             workspace="/tmp/job-1",
         )
         self.assertEqual(JobSpec.from_dict(spec.to_dict()), spec)
+
+    def test_external_workload_clones_runs_and_collects_declared_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            external_repo = root / "external"
+            external_repo.mkdir()
+            subprocess.run(
+                ["git", "init"],
+                cwd=external_repo,
+                check=True,
+                capture_output=True,
+            )
+            (external_repo / "run.py").write_text(
+                "from pathlib import Path\n"
+                "Path('checkpoint').mkdir()\n"
+                "Path('checkpoint/model.txt').write_text('trained\\n')\n",
+                encoding="utf-8",
+            )
+            subprocess.run(["git", "add", "run.py"], cwd=external_repo, check=True)
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.name=EdgeLLM Test",
+                    "-c",
+                    "user.email=test@edgellm.local",
+                    "commit",
+                    "-m",
+                    "test workload",
+                ],
+                cwd=external_repo,
+                check=True,
+                capture_output=True,
+            )
+            revision = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=external_repo,
+                check=True,
+                text=True,
+                capture_output=True,
+            ).stdout.strip()
+            spec = JobSpec(
+                job_id="external-job",
+                name="external-test",
+                experiment_config={"experiment": {"name": "external-test"}},
+                executor_type="local",
+                executor_config={},
+                runtime=RuntimeSpec(),
+                artifact_store=ArtifactSpec(
+                    type="local", config={"root": str(root / "published")}
+                ),
+                source=SourceSpec(project_root=str(PROJECT_ROOT)),
+                workspace=str(root / "workspace"),
+                workload=WorkloadSpec(
+                    type="external_project",
+                    integration="fixture",
+                    source=SourceSpec(
+                        repo_url=str(external_repo),
+                        revision=revision,
+                        project_root=str(external_repo),
+                    ),
+                    command=CommandSpec(argv=(sys.executable, "run.py")),
+                    artifacts=("checkpoint",),
+                ),
+            )
+
+            result = run_worker(spec)
+
+            self.assertEqual(result["state"], JobState.COMPLETED.value)
+            published = Path(result["artifact_uri"])
+            self.assertEqual(
+                (published / "artifacts" / "checkpoint" / "model.txt").read_text(),
+                "trained\n",
+            )
+            metadata = json.loads((published / "external-run.json").read_text())
+            self.assertEqual(metadata["revision"], revision)
+            self.assertIn("Running in", (published / "command.log").read_text())
 
     def test_local_job_runs_and_fetches_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
