@@ -8,6 +8,8 @@ execution:
     type: autodl
     profile: autodl-main
     remote_root: /root/autodl-tmp/edgellm-jobs
+    shell_init:
+      - source /etc/network_turbo
   runtime:
     type: native
     # AutoDL exposes Conda through interactive shell initialization; remote jobs

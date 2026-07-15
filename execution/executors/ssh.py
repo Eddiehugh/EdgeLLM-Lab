@@ -107,6 +107,16 @@ class SSHExecutor(Executor):
         root = str(self.config.get("remote_root", default_root)).rstrip("/")
         return f"{root}/{job_id}"
 
+    def _shell_init(self) -> list[str]:
+        value = self.config.get("shell_init", [])
+        if isinstance(value, str):
+            return [value]
+        if not isinstance(value, (list, tuple)) or not all(
+            isinstance(command, str) and command.strip() for command in value
+        ):
+            raise TypeError("execution.executor.shell_init must contain shell commands")
+        return list(value)
+
     @staticmethod
     def _require_source(spec: JobSpec) -> tuple[str, str]:
         if not spec.source.repo_url or not spec.source.revision:
@@ -179,6 +189,7 @@ class SSHExecutor(Executor):
 
         setup = [
             "set -e",
+            *self._shell_init(),
             f"git clone {shlex.quote(repo_url)} {shlex.quote(remote_source)}",
             f"git -C {shlex.quote(remote_source)} checkout --detach "
             f"{shlex.quote(revision)}",

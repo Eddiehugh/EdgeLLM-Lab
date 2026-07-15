@@ -208,6 +208,24 @@ class ConnectionProfileTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "did not return"):
             SSHExecutor._parse_remote_pid("pip output\n2660")
 
+    def test_shell_init_accepts_autodl_network_bootstrap(self) -> None:
+        executor = SSHExecutor(
+            {
+                "host": "example.com",
+                "shell_init": ["source /etc/network_turbo"],
+            }
+        )
+
+        self.assertEqual(executor._shell_init(), ["source /etc/network_turbo"])
+
+    def test_shell_init_rejects_non_string_commands(self) -> None:
+        executor = SSHExecutor(
+            {"host": "example.com", "shell_init": ["source profile", 42]}
+        )
+
+        with self.assertRaisesRegex(TypeError, "shell_init"):
+            executor._shell_init()
+
 
 if __name__ == "__main__":
     unittest.main()
