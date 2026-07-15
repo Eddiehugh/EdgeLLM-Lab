@@ -33,10 +33,10 @@ python3 -m cli fetch <job-id> --output downloads/<job-id>
 ```
 
 The smoke recipe targets a prepared AutoDL instance. It does not install dependencies,
-create a virtual environment, download data, or train a tokenizer. It uses
-`/root/miniconda3/bin/python` and the existing data and tokenizer under
-`/root/autodl-tmp/nanochat`, then runs a 20-step d4 pretraining smoke. Only the report,
-provenance files, and selected checkpoint are collected.
+create a virtual environment, download data, or train a tokenizer. It uses the existing
+environment at `/root/autodl-tmp/nanochat/.venv` together with the data and tokenizer
+under `/root/autodl-tmp/nanochat`, then runs a 20-step d4 pretraining smoke. Only the
+report, provenance files, and selected checkpoint are collected.
 
 ## Modify locally, run remotely
 

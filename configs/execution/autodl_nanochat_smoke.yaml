@@ -35,7 +35,7 @@ execution:
       require_clean: true
     working_directory: .
     command:
-      - /root/miniconda3/bin/python
+      - /root/autodl-tmp/nanochat/.venv/bin/python
       - -m
       - scripts.base_train
       - --depth=4

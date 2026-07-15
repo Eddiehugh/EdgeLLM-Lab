@@ -60,8 +60,8 @@ python3 -m cli submit \
 ```
 
 当前 smoke 配方面向已经准备好的 AutoDL 实例，不安装依赖、不创建虚拟环境，也不
-下载数据或训练 tokenizer。它直接使用 `/root/miniconda3/bin/python` 和
-`/root/autodl-tmp/nanochat` 中已有的数据、tokenizer，训练 20 step 的 d4 模型。
+下载数据或训练 tokenizer。它直接使用 `/root/autodl-tmp/nanochat/.venv` 中已有的
+环境，以及同目录下的数据和 tokenizer，训练 20 step 的 d4 模型。
 作业产物只包含报告、执行 manifest 和 `edgellm-smoke` checkpoint，不包含数据集。
 
 ## 本地修改到云端
