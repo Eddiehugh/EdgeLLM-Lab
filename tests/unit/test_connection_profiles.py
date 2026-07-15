@@ -188,6 +188,17 @@ class ConnectionProfileTest(unittest.TestCase):
         self.assertIn(expected_identity, executor._scp_options())
         self.assertIn("StrictHostKeyChecking=accept-new", executor._scp_options())
 
+    def test_remote_launch_uses_valid_background_shell_syntax(self) -> None:
+        command = SSHExecutor._build_remote_launch(
+            ["set -e", "cd /tmp/job/source"],
+            ["python3", "-m", "execution.worker", "--job-spec", "/tmp/job.json"],
+            "/tmp/job/worker.log",
+        )
+
+        self.assertIn("nohup python3 -m execution.worker", command)
+        self.assertIn("& printf '%s' $!", command)
+        self.assertNotIn("&;", command)
+
 
 if __name__ == "__main__":
     unittest.main()

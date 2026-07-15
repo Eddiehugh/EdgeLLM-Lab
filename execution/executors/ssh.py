@@ -114,6 +114,17 @@ class SSHExecutor(Executor):
             )
         return spec.source.repo_url, spec.source.revision
 
+    @staticmethod
+    def _build_remote_launch(
+        setup: list[str], command: list[str], remote_log: str
+    ) -> str:
+        foreground = "; ".join(setup)
+        background = (
+            f"nohup {shlex.join(command)} > {shlex.quote(remote_log)} "
+            "2>&1 < /dev/null"
+        )
+        return f"{foreground}; {background} & printf '%s' $!"
+
     def submit(self, spec: JobSpec) -> JobRecord:
         repo_url, revision = self._require_source(spec)
         local_workspace = Path(spec.workspace).expanduser().resolve()
@@ -168,15 +179,8 @@ class SSHExecutor(Executor):
                 f"{shlex.quote(remote_spec.runtime.python)} -m pip install -e "
                 f"{shlex.quote(install_target)}"
             )
-        setup.extend(
-            [
-                f"cd {shlex.quote(remote_source)}",
-                f"nohup {shlex.join(command)} > {shlex.quote(remote_log)} "
-                "2>&1 < /dev/null &",
-                "printf '%s' $!",
-            ]
-        )
-        pid = self._ssh("; ".join(setup))
+        setup.append(f"cd {shlex.quote(remote_source)}")
+        pid = self._ssh(self._build_remote_launch(setup, command, remote_log))
         return JobRecord(
             job_id=spec.job_id,
             name=spec.name,
