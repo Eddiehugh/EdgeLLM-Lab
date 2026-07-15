@@ -95,11 +95,13 @@ tests/
 - `norm`: LayerNorm 和 RMSNorm。
 - `block`: Transformer Block。
 - `position_encoding`: RoPE。
-- `model`: 当前有 TinyGPT，后续扩展 LLaMA-like、SmolLM-like、MobileLLM-like。
+- `model`: 当前有 TinyGPT，后续扩展 LLaMA-like、SmolLM-like、MobileLLM-like 和多模态模型族。
 - `loss`: causal LM cross entropy、z-loss、distillation。
 - `sampler`: greedy、multinomial、top-k、top-p。
-- `kv_cache`: 当前有 append-only cache，后续扩展 paged、sliding、quantized cache。
-- `quantizer`: 当前只有实验性的张量级 INT8；packed INT4、AWQ、GPTQ 和 KV cache quantization 仍在规划中。
+- `kv_cache`: 当前有 append-only cache 和与布局无关的参考版 KV 量化；paged、sliding cache 后续扩展。
+- `quantizer`: 已有经过测试的对称 INT8 和 packed group-wise INT4 参考实现。
+- `pruner`: 已有局部/全局 magnitude、结构化 channel 和 N:M 半结构化剪枝。
+- `model I/O`: 使用关键字张量字典和通用 logits 提取，可承载文本、图像、音频及多模态 batch。
 
 例如新增自己的 Attention：
 
@@ -203,7 +205,25 @@ Level 2 重点指标：
 - peak memory
 - KV cache memory
 - quantization error
+- 有效稀疏率和被选权重的实际存储
 - backend runtime latency
+
+### 量化与剪枝
+
+压缩系统明确拆分为四层：张量算法、与模型结构无关的模块选择、模型变换、
+优化后端/导出 adapter。当前 `ReferenceQuantizedLinear` 可以做数值验证并保存
+checkpoint，但不会虚报 kernel 加速；稠密张量上的 mask 剪枝也只报告真实稀疏率，
+不会虚报存储或延迟收益。
+
+运行参考版“先剪枝、再量化”流水线：
+
+```bash
+python3 -m cli train -c configs/compression/tiny_gpt_prune_int4.yaml
+```
+
+模型可以实现 `compression_scopes()`，让 language、vision、projector 等子图
+分别选择压缩策略。已支持算法、配置方法、benchmark 规则、后端边界和多模态规划见
+[压缩系统设计](docs/COMPRESSION.zh-CN.md)。
 
 ### 本地与远端执行
 
@@ -306,12 +326,13 @@ v0.1: TinyGPT + MHA + train + generate
 v0.2: RoPE + RMSNorm + SwiGLU
 v0.3: KV cache + streaming generation
 v0.4: MQA / GQA
-v0.5: INT8 / INT4 QuantLinear
+v0.5: 参考版 INT8 / packed INT4 / 剪枝流水线
 v0.6: MLA
 v0.7: Sliding Window / Sparse Attention
 v0.8: Benchmark suite
 v0.9: llama.cpp / ONNX backend
 v1.0: edge deployment demo
+v1.1: 多模态模型/数据契约和模态感知压缩
 ```
 
 ## 验证命令
@@ -327,6 +348,8 @@ python3 -m cli train -c configs/smoke.yaml
 ## 设计文档
 
 - [架构设计](docs/ARCHITECTURE.md)
+- [压缩系统设计](docs/COMPRESSION.zh-CN.md)
+- [多模态架构规划](docs/MULTIMODAL.zh-CN.md)
 - [扩展开发指南](docs/EXTENDING.md)
 - [优化器架构](docs/OPTIMIZERS.zh-CN.md)
 - [开源项目接入流程](docs/OPEN_SOURCE_INTEGRATION.md)

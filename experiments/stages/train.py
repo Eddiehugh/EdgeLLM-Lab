@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import itertools
 
+import torch
+
 from core import timed
 from core.specs import Maturity, ProjectLevel
 from experiments.context import ExperimentContext
 from experiments.stage import STAGE_REGISTRY, ExperimentStage
+from models import extract_logits, prepare_model_inputs
 
 
 @STAGE_REGISTRY.register(
@@ -30,9 +33,21 @@ class TrainStage(ExperimentStage):
         device = context.require("device")
         training_cfg = dict(context.config.get("training", {}))
 
+        inference_only_modules = [
+            name or "<root>"
+            for name, module in model.named_modules()
+            if bool(getattr(module, "inference_only", False))
+        ]
+        if inference_only_modules:
+            raise ValueError(
+                "The training stage cannot optimize inference-only modules: "
+                + ", ".join(inference_only_modules[:8])
+            )
+
         max_steps = int(training_cfg.get("max_steps", 1))
         grad_accum_steps = int(training_cfg.get("gradient_accumulation_steps", 1))
         log_interval = int(training_cfg.get("log_interval", max(1, max_steps)))
+        model_input_keys = training_cfg.get("model_input_keys")
         if len(dataloader) == 0:
             raise ValueError("Dataloader is empty. Increase data length or reduce block_size.")
 
@@ -48,14 +63,26 @@ class TrainStage(ExperimentStage):
                 accum_loss = 0.0
                 for _ in range(grad_accum_steps):
                     batch = next(batch_iter)
-                    input_ids = batch["input_ids"].to(device)
-                    labels = batch.get("labels")
-                    labels = labels.to(device) if labels is not None else None
-                    logits = model(input_ids)
-                    loss = loss_fn(logits, labels=labels, input_ids=input_ids)
+                    model_inputs, labels = prepare_model_inputs(
+                        batch,
+                        device,
+                        input_keys=model_input_keys,
+                    )
+                    model_outputs = model(**model_inputs)
+                    logits = extract_logits(model_outputs)
+                    input_ids = model_inputs.get("input_ids")
+                    loss = loss_fn(
+                        logits,
+                        labels=labels,
+                        input_ids=input_ids,
+                        model_outputs=model_outputs,
+                        model_inputs=model_inputs,
+                        batch=batch,
+                    )
                     (loss / grad_accum_steps).backward()
                     accum_loss += float(loss.detach())
-                    tokens_seen += int(input_ids.numel())
+                    if isinstance(input_ids, torch.Tensor):
+                        tokens_seen += int(input_ids.numel())
 
                 optimizer.step()
                 scheduler.step()

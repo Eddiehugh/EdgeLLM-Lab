@@ -19,6 +19,7 @@ def load_builtin_quantizers() -> None:
         return
     _BUILTINS_LOADED = True
 
+    import compression.quantization.int4  # noqa: F401
     import compression.quantization.int8  # noqa: F401
 
 

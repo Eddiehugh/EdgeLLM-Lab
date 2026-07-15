@@ -39,6 +39,8 @@ def load_builtin_stages() -> None:
     import experiments.stages.build_training  # noqa: F401
     import experiments.stages.checkpoint  # noqa: F401
     import experiments.stages.model_stats  # noqa: F401
+    import experiments.stages.prune_model  # noqa: F401
+    import experiments.stages.quantize_model  # noqa: F401
     import experiments.stages.runtime_setup  # noqa: F401
     import experiments.stages.train  # noqa: F401
 

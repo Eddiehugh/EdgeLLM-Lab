@@ -1,0 +1,43 @@
+experiment:
+  name: tiny-gpt-prune-int4
+  output_dir: runs
+
+runtime:
+  device: cpu
+  seed: 42
+
+model:
+  type: tiny_gpt
+  vocab_size: 256
+  hidden_size: 32
+  num_layers: 2
+  num_heads: 4
+  max_position_embeddings: 32
+
+training:
+  save_checkpoint: true
+
+compression:
+  pruning:
+    type: magnitude
+    sparsity: 0.5
+    scope: global
+    selector:
+      include:
+        - "blocks.*"
+  quantization:
+    type: int4
+    group_size: 16
+    selector:
+      include:
+        - "blocks.*"
+        - lm_head
+
+pipeline:
+  stages:
+    - runtime_setup
+    - build_model
+    - model_stats
+    - prune_model
+    - quantize_model
+    - checkpoint

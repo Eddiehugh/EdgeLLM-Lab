@@ -128,6 +128,64 @@ Future evaluation, compression, export, deployment, and benchmark workflows
 should be new stages or new stage sequences, not conditionals added to the
 runner.
 
+## Compression Rule
+
+Compression has four independent layers:
+
+1. Tensor algorithm: quantize/dequantize tensors or compute pruning masks.
+2. Module selection: select paths and model-defined semantic scopes.
+3. Model transform: replace or parametrize modules and emit a machine-readable report.
+4. Backend/export adapter: produce a runtime-specific format and measure real device behavior.
+
+Reference algorithms under `compression/` must remain readable and portable.
+They may validate numerical behavior and storage accounting, but they must not
+claim latency or memory speedups that require an optimized kernel. Runtime
+claims belong to `backend/` benchmarks on the target device.
+
+Quantization and pruning are separate registered families. Each algorithm gets
+its own file, while model traversal remains centralized in the transform layer.
+Every transform must report selected modules, affected parameters, original and
+represented bytes, method metadata, and known backend requirements.
+
+Pipeline ordering is explicit. For example, prune then quantize is a different
+recipe from quantize then prune and must be represented by stage order:
+
+```yaml
+pipeline:
+  stages:
+    - build_model
+    - prune_model
+    - quantize_model
+    - checkpoint
+```
+
+See [Compression Architecture](COMPRESSION.md).
+
+## Multimodal Model I/O Rule
+
+Training stages pass batches to models as keyword arguments instead of assuming
+a single `input_ids` tensor. Labels and metadata are split from model inputs;
+model outputs may be a tensor, a mapping with `logits`, or an object exposing a
+`logits` tensor. This keeps the runner independent of text-only assumptions.
+
+A multimodal model should expose stable semantic compression scopes, for example:
+
+```python
+def compression_scopes(self):
+    return {
+        "language": ("language_model",),
+        "vision": ("vision_encoder",),
+        "projector": ("multimodal_projector",),
+    }
+```
+
+Scope names are model contracts; compression algorithms must not special-case a
+specific multimodal architecture. Dataset processors, modality encoders, fusion
+modules, and generation policies remain separate replaceable domains as those
+features are added.
+
+See [Multimodal Architecture Plan](MULTIMODAL.md).
+
 ## Execution Rule
 
 `ExperimentRunner` defines internal experiments. `WorkloadSpec` can instead pin

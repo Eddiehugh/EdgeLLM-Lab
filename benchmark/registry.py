@@ -11,6 +11,7 @@ from core.registry import Registry, build_from_config
 
 
 BENCHMARK_REGISTRY = Registry("benchmark")
+_BUILTINS_LOADED = False
 
 
 @BENCHMARK_REGISTRY.register(
@@ -30,8 +31,20 @@ class ModelStatsBenchmark:
         }
 
 
+def load_builtin_benchmarks() -> None:
+    """Load optional benchmark implementations exactly once."""
+
+    global _BUILTINS_LOADED
+    if _BUILTINS_LOADED:
+        return
+    _BUILTINS_LOADED = True
+
+    import benchmark.benchmark_quant  # noqa: F401
+
+
 def build_benchmark(benchmark_type: str | dict = "model_stats", **kwargs):
     """Build a benchmark by name."""
+    load_builtin_benchmarks()
     return build_from_config(
         BENCHMARK_REGISTRY,
         benchmark_type,

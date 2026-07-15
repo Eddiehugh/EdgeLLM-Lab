@@ -57,6 +57,31 @@ class ExtensibleArchitectureTest(unittest.TestCase):
                 }
             )
 
+    def test_config_validation_checks_compression_pass_structure(self):
+        with self.assertRaisesRegex(ExperimentConfigError, "duplicate pass id"):
+            normalize_experiment_config(
+                {
+                    "compression": {
+                        "quantization": [
+                            {"id": "language", "type": "int4"},
+                            {"id": "language", "type": "int8"},
+                        ]
+                    }
+                }
+            )
+
+        with self.assertRaisesRegex(ExperimentConfigError, "selector must be a mapping"):
+            normalize_experiment_config(
+                {
+                    "compression": {
+                        "pruning": {
+                            "type": "magnitude",
+                            "selector": ["blocks.*"],
+                        }
+                    }
+                }
+            )
+
     def test_custom_stages_extend_runner_without_runner_changes(self):
         @STAGE_REGISTRY.register(
             "test_producer",

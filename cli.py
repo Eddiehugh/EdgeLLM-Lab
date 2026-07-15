@@ -30,13 +30,17 @@ def _load_config_with_overrides(args: argparse.Namespace) -> dict[str, Any]:
 
 def _load_all_builtin_components() -> None:
     from backend import load_builtin_backends
+    from benchmark import load_builtin_benchmarks
     from compression import load_builtin_quantizers
+    from compression import load_builtin_pruners
     from experiments.stage import load_builtin_stages
     from models import load_builtin_models
 
     load_builtin_models()
     load_builtin_backends()
+    load_builtin_benchmarks()
     load_builtin_quantizers()
+    load_builtin_pruners()
     load_builtin_stages()
 
 
@@ -45,7 +49,7 @@ def _component_registries():
 
     from backend import BACKEND_REGISTRY
     from benchmark import BENCHMARK_REGISTRY
-    from compression import QUANTIZER_REGISTRY
+    from compression import PRUNER_REGISTRY, QUANTIZER_REGISTRY
     from data import DATALOADER_REGISTRY, DATASET_REGISTRY, TOKENIZER_REGISTRY
     from experiments import STAGE_REGISTRY
     from inference import KV_CACHE_REGISTRY, SAMPLER_REGISTRY
@@ -85,6 +89,7 @@ def _component_registries():
         "dataloader": DATALOADER_REGISTRY,
         "tokenizer": TOKENIZER_REGISTRY,
         "quantizer": QUANTIZER_REGISTRY,
+        "pruner": PRUNER_REGISTRY,
         "experiment_stage": STAGE_REGISTRY,
     }
 

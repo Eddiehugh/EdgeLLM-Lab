@@ -39,6 +39,53 @@ def _validate_stage(stage: Any, index: int, issues: list[str]) -> None:
     )
 
 
+def _validate_compression_passes(
+    configured: Any,
+    path: str,
+    issues: list[str],
+) -> None:
+    if isinstance(configured, (str, Mapping)):
+        passes = [configured]
+    elif isinstance(configured, (list, tuple)):
+        passes = list(configured)
+        if not passes:
+            issues.append(f"{path} must contain at least one pass")
+            return
+    else:
+        issues.append(f"{path} must be a component name, mapping, or list")
+        return
+
+    pass_ids: set[str] = set()
+    for index, item in enumerate(passes):
+        item_path = f"{path}[{index}]" if len(passes) > 1 else path
+        if isinstance(item, str):
+            if not item.strip():
+                issues.append(f"{item_path} component name must not be empty")
+            continue
+        if not isinstance(item, Mapping):
+            issues.append(f"{item_path} must be a component name or mapping")
+            continue
+        pass_id = item.get("id")
+        if pass_id is not None:
+            if not isinstance(pass_id, str) or not pass_id:
+                issues.append(f"{item_path}.id must be a non-empty string")
+            elif pass_id in pass_ids:
+                issues.append(f"{path} contains duplicate pass id '{pass_id}'")
+            else:
+                pass_ids.add(pass_id)
+        selector = item.get("selector")
+        if selector is not None and not isinstance(selector, Mapping):
+            issues.append(f"{item_path}.selector must be a mapping")
+        for key in (
+            "allow_empty",
+            "allow_shared_weights",
+            "enforce_mask",
+            "inplace",
+        ):
+            if key in item and not isinstance(item[key], bool):
+                issues.append(f"{item_path}.{key} must be a boolean")
+
+
 def normalize_experiment_config(config: Mapping[str, Any]) -> dict[str, Any]:
     """Return a validated, fully resolved experiment configuration."""
 
@@ -72,7 +119,15 @@ def validate_experiment_config(config: Mapping[str, Any]) -> None:
             f"schema_version must be {CONFIG_SCHEMA_VERSION}; received {version!r}"
         )
 
-    for section in ("experiment", "runtime", "model", "data", "loss", "training"):
+    for section in (
+        "experiment",
+        "runtime",
+        "model",
+        "data",
+        "loss",
+        "training",
+        "compression",
+    ):
         value = config.get(section)
         if value is not None and section != "loss" and not isinstance(value, Mapping):
             issues.append(f"{section} must be a mapping")
@@ -103,6 +158,16 @@ def validate_experiment_config(config: Mapping[str, Any]) -> None:
         for key in ("batch_size", "max_steps", "gradient_accumulation_steps"):
             if key in training_cfg and not _is_positive_int(training_cfg[key]):
                 issues.append(f"training.{key} must be a positive integer")
+
+    compression_cfg = config.get("compression", {})
+    if isinstance(compression_cfg, Mapping):
+        for family in ("pruning", "quantization"):
+            if family in compression_cfg:
+                _validate_compression_passes(
+                    compression_cfg[family],
+                    f"compression.{family}",
+                    issues,
+                )
 
     pipeline = config.get("pipeline")
     if not isinstance(pipeline, Mapping):

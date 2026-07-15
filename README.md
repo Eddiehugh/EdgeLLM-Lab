@@ -95,11 +95,13 @@ Current replaceable components:
 - `norm`: LayerNorm and RMSNorm.
 - `block`: Transformer block.
 - `position_encoding`: RoPE.
-- `model`: TinyGPT now; later LLaMA-like, SmolLM-like, MobileLLM-like.
+- `model`: TinyGPT now; later LLaMA-like, SmolLM-like, MobileLLM-like, and multimodal families.
 - `loss`: causal LM cross entropy, z-loss, distillation.
 - `sampler`: greedy, multinomial, top-k, top-p.
-- `kv_cache`: append-only cache now; later paged, sliding, quantized cache.
-- `quantizer`: experimental tensor-level INT8 now; packed INT4, AWQ, GPTQ, and KV quantization are planned.
+- `kv_cache`: append-only cache plus layout-agnostic reference KV quantization; paged and sliding caches remain planned.
+- `quantizer`: verified symmetric INT8 and packed group-wise INT4 reference implementations.
+- `pruner`: local/global magnitude, structured channel, and N:M semi-structured pruning.
+- `model I/O`: keyword-based tensor dictionaries and generic logits extraction, ready for text, vision, audio, and multimodal batches.
 
 Example: add a custom attention implementation.
 
@@ -207,7 +209,27 @@ Important Level 2 metrics:
 - peak memory
 - KV cache memory
 - quantization error
+- effective sparsity and selected-weight storage
 - backend runtime latency
+
+### Quantization and pruning
+
+Compression uses four separate boundaries: tensor algorithms, architecture-neutral
+module selection, model transforms, and optimized backend/export adapters. The
+current `ReferenceQuantizedLinear` is numerically testable and checkpointable,
+but deliberately does not claim kernel speedup. Dense masked pruning likewise
+reports sparsity without claiming reduced storage or latency.
+
+Run the reference prune-then-quantize pipeline:
+
+```bash
+python3 -m cli train -c configs/compression/tiny_gpt_prune_int4.yaml
+```
+
+Models may expose `compression_scopes()` so language, vision, projector, and
+other subgraphs can be compressed independently. See
+[Compression Architecture](docs/COMPRESSION.md) for supported algorithms,
+configuration, benchmark rules, backend boundaries, and the multimodal plan.
 
 ### Local and remote execution
 
@@ -311,12 +333,13 @@ v0.1: TinyGPT + MHA + train + generate
 v0.2: RoPE + RMSNorm + SwiGLU
 v0.3: KV cache + streaming generation
 v0.4: MQA / GQA
-v0.5: INT8 / INT4 QuantLinear
+v0.5: reference INT8 / packed INT4 / pruning pipeline
 v0.6: MLA
 v0.7: Sliding Window / Sparse Attention
 v0.8: Benchmark suite
 v0.9: llama.cpp / ONNX backend
 v1.0: edge deployment demo
+v1.1: multimodal model/data contracts and modality-aware compression
 ```
 
 ## Validation
@@ -332,6 +355,8 @@ python3 -m cli train -c configs/smoke.yaml
 ## Design Documents
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [Compression Architecture](docs/COMPRESSION.md)
+- [Multimodal Architecture Plan](docs/MULTIMODAL.md)
 - [Extension Guide](docs/EXTENDING.md)
 - [Optimizer Architecture](docs/OPTIMIZERS.md)
 - [Open Source Integration Workflow](docs/OPEN_SOURCE_INTEGRATION.md)
