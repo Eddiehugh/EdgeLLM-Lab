@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -123,7 +124,17 @@ class SSHExecutor(Executor):
             f"nohup {shlex.join(command)} > {shlex.quote(remote_log)} "
             "2>&1 < /dev/null"
         )
-        return f"{foreground}; {background} & printf '%s' $!"
+        return (
+            f"{foreground}; {background} & "
+            "printf '\\n__EDGELLM_PID__=%s\\n' $!"
+        )
+
+    @staticmethod
+    def _parse_remote_pid(output: str) -> str:
+        match = re.search(r"(?:^|\n)__EDGELLM_PID__=(\d+)\s*$", output)
+        if match is None:
+            raise RuntimeError("Remote launch did not return an EdgeLLM worker PID")
+        return match.group(1)
 
     def submit(self, spec: JobSpec) -> JobRecord:
         repo_url, revision = self._require_source(spec)
@@ -180,7 +191,10 @@ class SSHExecutor(Executor):
                 f"{shlex.quote(install_target)}"
             )
         setup.append(f"cd {shlex.quote(remote_source)}")
-        pid = self._ssh(self._build_remote_launch(setup, command, remote_log))
+        launch_output = self._ssh(
+            self._build_remote_launch(setup, command, remote_log)
+        )
+        pid = self._parse_remote_pid(launch_output)
         return JobRecord(
             job_id=spec.job_id,
             name=spec.name,

@@ -12,7 +12,7 @@ venv/
 .edgellm/
 runs/
 checkpoints/
-artifacts/
+/artifacts/
 *.pt
 *.pth
 *.safetensors

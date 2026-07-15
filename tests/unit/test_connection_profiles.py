@@ -196,8 +196,17 @@ class ConnectionProfileTest(unittest.TestCase):
         )
 
         self.assertIn("nohup python3 -m execution.worker", command)
-        self.assertIn("& printf '%s' $!", command)
+        self.assertIn("& printf '\\n__EDGELLM_PID__=%s\\n' $!", command)
         self.assertNotIn("&;", command)
+
+    def test_remote_pid_parser_ignores_bootstrap_output(self) -> None:
+        output = "pip install output\nmore output\n__EDGELLM_PID__=2660"
+
+        self.assertEqual(SSHExecutor._parse_remote_pid(output), "2660")
+
+    def test_remote_pid_parser_rejects_unmarked_output(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "did not return"):
+            SSHExecutor._parse_remote_pid("pip output\n2660")
 
 
 if __name__ == "__main__":
