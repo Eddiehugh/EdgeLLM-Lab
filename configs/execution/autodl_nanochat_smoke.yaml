@@ -10,7 +10,9 @@ execution:
     remote_root: /root/autodl-tmp/edgellm-jobs
   runtime:
     type: native
-    python: python3
+    # AutoDL exposes Conda through interactive shell initialization; remote jobs
+    # use an absolute path so non-interactive SSH execution is deterministic.
+    python: /root/miniconda3/bin/python
   artifact_store:
     type: local
     # Prefer /root/autodl-fs/EdgeLLM-Lab/artifacts when AutoDL File Storage is mounted.
@@ -31,8 +33,8 @@ execution:
       require_clean: true
     working_directory: .
     setup:
-      - [python3, -m, pip, install, "uv>=0.8"]
-      - [python3, -m, uv, sync, --extra, gpu, --frozen]
+      - [/root/miniconda3/bin/python, -m, pip, install, "uv>=0.8"]
+      - [/root/miniconda3/bin/python, -m, uv, sync, --extra, gpu, --frozen]
       - [.venv/bin/python, -m, nanochat.dataset, -n, "1"]
       - argv: [.venv/bin/python, -m, scripts.tok_train, --max-chars=20000000, --vocab-size=8192]
         skip_if_exists: ${NANOCHAT_BASE_DIR}/tokenizer/token_bytes.pt
