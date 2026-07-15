@@ -59,10 +59,10 @@ python3 -m cli submit \
   --wait --poll-interval 5 --timeout 7200
 ```
 
-首次任务会安装 uv、创建 nanochat `.venv`、下载一个训练 shard 和固定的 validation
-shard、训练 8192 词表 tokenizer，然后训练 20 step 的 d4 模型。数据与 tokenizer
-留在 `/root/autodl-tmp/edgellm-cache`，后续任务复用；下载结果只包含报告、执行
-manifest 和 `edgellm-smoke` checkpoint，不包含数据集。
+当前 smoke 配方面向已经准备好的 AutoDL 实例，不安装依赖、不创建虚拟环境，也不
+下载数据或训练 tokenizer。它直接使用 `/root/miniconda3/bin/python` 和
+`/root/autodl-tmp/nanochat` 中已有的数据、tokenizer，训练 20 step 的 d4 模型。
+作业产物只包含报告、执行 manifest 和 `edgellm-smoke` checkpoint，不包含数据集。
 
 ## 本地修改到云端
 

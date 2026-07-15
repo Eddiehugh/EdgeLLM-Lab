@@ -32,10 +32,11 @@ python3 -m cli status <job-id>
 python3 -m cli fetch <job-id> --output downloads/<job-id>
 ```
 
-The first run creates nanochat's uv environment, downloads one training shard plus the
-validation shard, trains an 8192-token tokenizer, and runs a 20-step d4 pretraining
-smoke. Dataset and tokenizer caches remain under `/root/autodl-tmp/edgellm-cache`;
-only the report, provenance files, and selected checkpoint are collected.
+The smoke recipe targets a prepared AutoDL instance. It does not install dependencies,
+create a virtual environment, download data, or train a tokenizer. It uses
+`/root/miniconda3/bin/python` and the existing data and tokenizer under
+`/root/autodl-tmp/nanochat`, then runs a 20-step d4 pretraining smoke. Only the report,
+provenance files, and selected checkpoint are collected.
 
 ## Modify locally, run remotely
 
