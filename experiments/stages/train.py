@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import itertools
+from collections.abc import Mapping
 
 import torch
 
@@ -49,11 +50,14 @@ class TrainStage(ExperimentStage):
         log_interval = int(training_cfg.get("log_interval", max(1, max_steps)))
         model_input_keys = training_cfg.get("model_input_keys")
         if len(dataloader) == 0:
-            raise ValueError("Dataloader is empty. Increase data length or reduce block_size.")
+            raise ValueError(
+                "Dataloader is empty. Increase data length or reduce block_size."
+            )
 
         model.train()
         losses: list[float] = []
         tokens_seen = 0
+        modality_tokens_seen = 0
         step = 0
         batch_iter = itertools.cycle(dataloader)
 
@@ -83,6 +87,18 @@ class TrainStage(ExperimentStage):
                     accum_loss += float(loss.detach())
                     if isinstance(input_ids, torch.Tensor):
                         tokens_seen += int(input_ids.numel())
+                    if isinstance(model_outputs, Mapping):
+                        modality_token_count = model_outputs.get(
+                            "modality_token_count"
+                        )
+                    else:
+                        modality_token_count = getattr(
+                            model_outputs,
+                            "modality_token_count",
+                            None,
+                        )
+                    if isinstance(modality_token_count, torch.Tensor):
+                        modality_tokens_seen += int(modality_token_count.sum().item())
 
                 optimizer.step()
                 scheduler.step()
@@ -91,14 +107,19 @@ class TrainStage(ExperimentStage):
                 if step == 1 or step == max_steps or step % log_interval == 0:
                     losses.append(loss_value)
 
+        model_tokens_seen = tokens_seen + modality_tokens_seen
         context.metrics.update(
             {
                 "steps": step,
                 "tokens_seen": tokens_seen,
+                "modality_tokens_seen": modality_tokens_seen,
+                "model_tokens_seen": model_tokens_seen,
                 "final_train_loss": losses[-1] if losses else float("nan"),
                 "logged_train_losses": losses,
                 "runtime_seconds": timer.elapsed_seconds,
                 "tokens_per_second": tokens_seen / max(timer.elapsed_seconds, 1e-12),
+                "model_tokens_per_second": model_tokens_seen
+                / max(timer.elapsed_seconds, 1e-12),
                 "learning_rate": optimizer.param_groups[0]["lr"],
             }
         )

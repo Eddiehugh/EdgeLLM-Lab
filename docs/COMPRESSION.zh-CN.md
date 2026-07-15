@@ -109,8 +109,11 @@ def compression_scopes(self):
         "vision": ("vision_encoder",),
         "audio": ("audio_encoder",),
         "projector": ("multimodal_projector",),
-    }
+}
 ```
+
+`tiny_vlm` 已经实现该契约，提供 `language`、`vision`、`projector`、
+`resampler`、`fusion` 和汇总 `multimodal` scope。
 
 压缩 recipe 只面向 scope，不导入或判断具体模型类。这样可组合出“语言权重 INT4、
 视觉权重 INT8、projector 保持浮点、KV cache 独立量化”等策略，并按 scope 生成报告。

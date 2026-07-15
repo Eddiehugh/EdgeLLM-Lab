@@ -47,6 +47,18 @@ modules/attention/
 └── sparse.py
 ```
 
+Multimodal domains add one more level only where the concepts are genuinely
+independent:
+
+```text
+modules/
+├── vision/encoder/         modality-specific feature extraction
+└── multimodal/
+    ├── projector/          hidden-space mapping
+    ├── resampler/          modality token-budget control
+    └── fusion/             modality/text sequence composition
+```
+
 The package `__init__.py` should only expose public imports and load built-ins.
 The registry and factory live in `registry.py`. Shared utilities live in
 `base.py`.
@@ -161,14 +173,20 @@ pipeline:
 
 See [Compression Architecture](COMPRESSION.md).
 
-## Multimodal Model I/O Rule
+## Multimodal Composition Rule
 
 Training stages pass batches to models as keyword arguments instead of assuming
 a single `input_ids` tensor. Labels and metadata are split from model inputs;
 model outputs may be a tensor, a mapping with `logits`, or an object exposing a
 `logits` tensor. This keeps the runner independent of text-only assumptions.
 
-A multimodal model should expose stable semantic compression scopes, for example:
+Reusable modality encoders return `ModalityFeatures`; resamplers preserve that
+contract; projectors only transform the embedding dimension; fusion modules
+return `FusionOutput` with fused embeddings, a valid-token mask, and explicit
+text positions. Model families compose these contracts and own sequence layout.
+The runner must not know where image patches are inserted.
+
+A multimodal model exposes stable semantic compression scopes, for example:
 
 ```python
 def compression_scopes(self):
@@ -180,11 +198,11 @@ def compression_scopes(self):
 ```
 
 Scope names are model contracts; compression algorithms must not special-case a
-specific multimodal architecture. Dataset processors, modality encoders, fusion
-modules, and generation policies remain separate replaceable domains as those
-features are added.
+specific multimodal architecture. Modality encoders, projectors, resamplers,
+fusion methods, model families, and datasets have independent registries and
+files. Mature external towers remain adapters under `integrations/`.
 
-See [Multimodal Architecture Plan](MULTIMODAL.md).
+See [Multimodal Architecture](MULTIMODAL.md).
 
 ## Execution Rule
 

@@ -21,6 +21,7 @@ def load_builtin_models() -> None:
         return
     _BUILTINS_LOADED = True
 
+    import models.multimodal.tiny_vlm  # noqa: F401
     import models.tiny_gpt  # noqa: F401
 
 

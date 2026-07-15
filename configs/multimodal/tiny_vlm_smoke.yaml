@@ -1,0 +1,71 @@
+schema_version: 1
+
+experiment:
+  name: tiny-vlm-smoke
+  output_dir: runs
+
+runtime:
+  device: cpu
+  seed: 42
+
+model:
+  type: tiny_vlm
+  vocab_size: 64
+  hidden_size: 16
+  num_layers: 1
+  num_heads: 4
+  max_position_embeddings: 8
+  image_size: 8
+  patch_size: 4
+  vision_hidden_size: 12
+  vision_num_layers: 1
+  vision_num_heads: 3
+  max_images: 1
+  vision_encoder_type: patch_transformer
+  projector_type:
+    type: mlp
+    hidden_size: 16
+  resampler_type:
+    type: adaptive_pool
+    num_tokens: 2
+  fusion_type: prefix
+  norm_type: rmsnorm
+  mlp_type: swiglu
+
+data:
+  tokenizer_type: char
+  dataset:
+    type: synthetic_vision_language
+    num_samples: 12
+    sequence_length: 8
+    image_size: 8
+    num_images: 1
+    num_classes: 8
+    seed: 42
+  shuffle: true
+
+loss:
+  type: causal_lm
+
+training:
+  batch_size: 2
+  learning_rate: 0.001
+  max_steps: 2
+  save_checkpoint: true
+  optimizer:
+    algorithm: adamw
+    implementation: torch
+    param_group_policy: all
+    weight_decay: 0.0
+  scheduler:
+    type: constant
+
+pipeline:
+  stages:
+    - runtime_setup
+    - build_data
+    - build_model
+    - build_training
+    - train
+    - model_stats
+    - checkpoint

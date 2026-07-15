@@ -144,14 +144,125 @@ def validate_experiment_config(config: Mapping[str, Any]) -> None:
             "num_layers",
             "num_heads",
             "max_position_embeddings",
+            "image_size",
+            "patch_size",
+            "vision_hidden_size",
+            "vision_num_layers",
+            "vision_num_heads",
+            "max_images",
         ):
             if key in model_cfg and not _is_positive_int(model_cfg[key]):
                 issues.append(f"model.{key} must be a positive integer")
+        image_size = model_cfg.get("image_size")
+        patch_size = model_cfg.get("patch_size")
+        if (
+            _is_positive_int(image_size)
+            and _is_positive_int(patch_size)
+            and image_size % patch_size
+        ):
+            issues.append("model.image_size must be divisible by model.patch_size")
+        for hidden_key, heads_key in (
+            ("hidden_size", "num_heads"),
+            ("vision_hidden_size", "vision_num_heads"),
+        ):
+            hidden_size = model_cfg.get(hidden_key)
+            num_heads = model_cfg.get(heads_key)
+            if (
+                _is_positive_int(hidden_size)
+                and _is_positive_int(num_heads)
+                and hidden_size % num_heads
+            ):
+                issues.append(
+                    f"model.{hidden_key} must be divisible by model.{heads_key}"
+                )
+        for key in (
+            "freeze_language_model",
+            "freeze_projector",
+            "freeze_vision_encoder",
+        ):
+            if key in model_cfg and not isinstance(model_cfg[key], bool):
+                issues.append(f"model.{key} must be a boolean")
+        for key in (
+            "fusion_type",
+            "projector_type",
+            "resampler_type",
+            "vision_encoder_type",
+        ):
+            if key in model_cfg and not isinstance(model_cfg[key], (str, Mapping)):
+                issues.append(f"model.{key} must be a component name or mapping")
 
     data_cfg = config.get("data", {})
     if isinstance(data_cfg, Mapping):
         if "block_size" in data_cfg and not _is_positive_int(data_cfg["block_size"]):
             issues.append("data.block_size must be a positive integer")
+        dataset_cfg = data_cfg.get("dataset")
+        if isinstance(dataset_cfg, Mapping):
+            for key in (
+                "image_size",
+                "num_classes",
+                "num_images",
+                "num_samples",
+                "sequence_length",
+            ):
+                if key in dataset_cfg and not _is_positive_int(dataset_cfg[key]):
+                    issues.append(f"data.dataset.{key} must be a positive integer")
+            sequence_length = dataset_cfg.get("sequence_length")
+            max_text_length = (
+                model_cfg.get("max_position_embeddings")
+                if isinstance(model_cfg, Mapping)
+                else None
+            )
+            if (
+                _is_positive_int(sequence_length)
+                and _is_positive_int(max_text_length)
+                and sequence_length > max_text_length
+            ):
+                issues.append(
+                    "data.dataset.sequence_length must not exceed "
+                    "model.max_position_embeddings"
+                )
+            dataset_image_size = dataset_cfg.get("image_size")
+            model_image_size = (
+                model_cfg.get("image_size")
+                if isinstance(model_cfg, Mapping)
+                else None
+            )
+            if (
+                _is_positive_int(dataset_image_size)
+                and _is_positive_int(model_image_size)
+                and dataset_image_size != model_image_size
+            ):
+                issues.append(
+                    "data.dataset.image_size must match model.image_size"
+                )
+            num_images = dataset_cfg.get("num_images")
+            max_images = (
+                model_cfg.get("max_images")
+                if isinstance(model_cfg, Mapping)
+                else None
+            )
+            if (
+                _is_positive_int(num_images)
+                and _is_positive_int(max_images)
+                and num_images > max_images
+            ):
+                issues.append(
+                    "data.dataset.num_images must not exceed model.max_images"
+                )
+            num_classes = dataset_cfg.get("num_classes")
+            vocab_size = (
+                model_cfg.get("vocab_size")
+                if isinstance(model_cfg, Mapping)
+                else None
+            )
+            if (
+                _is_positive_int(num_classes)
+                and _is_positive_int(vocab_size)
+                and num_classes > vocab_size
+            ):
+                issues.append(
+                    "data.dataset.num_classes must not exceed model.vocab_size"
+                )
 
     training_cfg = config.get("training", {})
     if isinstance(training_cfg, Mapping):

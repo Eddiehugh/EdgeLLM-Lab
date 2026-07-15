@@ -117,8 +117,11 @@ def compression_scopes(self):
         "vision": ("vision_encoder",),
         "audio": ("audio_encoder",),
         "projector": ("multimodal_projector",),
-    }
+}
 ```
+
+`tiny_vlm` implements this contract for `language`, `vision`, `projector`,
+`resampler`, `fusion`, and aggregate `multimodal` scopes.
 
 Compression recipes then target scopes without importing or checking a concrete
 model class. This supports mixed policies such as INT4 language weights, INT8

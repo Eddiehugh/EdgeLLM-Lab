@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any, Callable
 
 from core.specs import Maturity, ProjectLevel
 from data import (
@@ -12,6 +14,7 @@ from data import (
     build_dataloader,
     build_dataset,
     build_tokenizer,
+    load_builtin_datasets,
 )
 from experiments.context import ExperimentContext
 from experiments.stage import STAGE_REGISTRY, ExperimentStage
@@ -50,22 +53,51 @@ class BuildDataStage(ExperimentStage):
             selected_name(tokenizer_cfg, "char"),
         )
 
+        dataset_cfg = data_cfg.get("dataset", data_cfg.get("dataset_type", "causal_lm"))
+        load_builtin_datasets()
+        dataset_name = selected_name(dataset_cfg, "causal_lm")
+        dataset_spec = DATASET_REGISTRY.get_spec(dataset_name)
+        configured_dataset_values = (
+            dict(dataset_cfg) if isinstance(dataset_cfg, Mapping) else {}
+        )
+        configured_dataset_values.pop("type", None)
+        configured_dataset_values.pop("name", None)
+
         block_size = int(
             data_cfg.get("block_size", model_cfg.get("max_position_embeddings", 128))
         )
-        token_ids = data_cfg.get("token_ids")
-        if token_ids is None:
-            token_ids = tokenizer.encode(self._load_text(data_cfg))
+        def token_ids() -> Any:
+            configured = data_cfg.get("token_ids")
+            if configured is not None:
+                return configured
+            return tokenizer.encode(self._load_text(data_cfg))
 
-        dataset_cfg = data_cfg.get("dataset", data_cfg.get("dataset_type", "causal_lm"))
+        providers: dict[str, Callable[[], Any]] = {
+            "block_size": lambda: block_size,
+            "token_ids": token_ids,
+            "tokenizer": lambda: tokenizer,
+            "vocab_size": lambda: int(model_cfg["vocab_size"]),
+        }
+        dataset_kwargs: dict[str, Any] = {}
+        for requirement in dataset_spec.requires:
+            if requirement in configured_dataset_values:
+                continue
+            try:
+                dataset_kwargs[requirement] = providers[requirement]()
+            except KeyError as exc:
+                raise ValueError(
+                    f"Dataset '{dataset_name}' requires '{requirement}', but it is "
+                    "not present in data.dataset and has no pipeline provider"
+                ) from exc
+
         dataset = context.provide(
             "dataset",
-            build_dataset(dataset_cfg, token_ids=token_ids, block_size=block_size),
+            build_dataset(dataset_cfg, **dataset_kwargs),
         )
         context.track_component(
             "dataset",
             DATASET_REGISTRY,
-            selected_name(dataset_cfg, "causal_lm"),
+            dataset_name,
         )
 
         dataloader_cfg = data_cfg.get(

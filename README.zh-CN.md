@@ -28,12 +28,12 @@ Level 3: Work by Wrapping
 ```text
 EdgeLLM-Lab/
 ├── core/                    # 注册表、组件规范、配置、环境追踪、运行时工具
-├── modules/                 # Level 1: 算法包；每种技术独立文件
-├── models/                  # Level 1: TinyGPT、LLaMA-like、DeepSeek-like、后续模型族
+├── modules/                 # Level 1: 文本、视觉、多模态算法包；每种技术独立文件
+├── models/                  # Level 1: TinyGPT、TinyVLM 和后续模型族
 ├── training/                # Level 1/2: Loss、Optimizer、Scheduler、训练入口
 ├── inference/               # Level 1/2: Sampler、KV Cache、生成引擎
 ├── compression/             # Level 1/2: 量化、剪枝、低秩压缩
-├── data/                    # Tokenizer、Dataset、Dataloader
+├── data/                    # 文本/多模态 Dataset、Tokenizer、Dataloader
 ├── experiments/             # Level 2: 可注册 Stage 流水线、上下文和产物管理
 ├── execution/               # 与云平台无关的作业、运行时、产物和元数据控制面
 ├── reproduction/            # Level 2: 论文规范、Recipe Suite、Claim 评估和报告
@@ -76,8 +76,14 @@ modules/
 │   └── transformer.py
 ├── position/
 │   └── rope.py
-└── moe/
-    └── router.py
+├── moe/
+│   └── router.py
+├── vision/encoder/
+│   └── patch_transformer.py
+└── multimodal/
+    ├── projector/
+    ├── resampler/
+    └── fusion/
 ```
 
 `tests/` 与可直接使用的 `modules/` 分离：
@@ -95,13 +101,18 @@ tests/
 - `norm`: LayerNorm 和 RMSNorm。
 - `block`: Transformer Block。
 - `position_encoding`: RoPE。
-- `model`: 当前有 TinyGPT，后续扩展 LLaMA-like、SmolLM-like、MobileLLM-like 和多模态模型族。
+- `model`: 当前有可训练的 TinyGPT 和 TinyVLM 参考模型族。
+- `vision_encoder`: patch embedding 和可配置的双向 Transformer 视觉塔。
+- `multimodal_projector`: linear 与两层 GELU MLP projector。
+- `multimodal_resampler`: identity 和 mask-aware adaptive token pooling。
+- `multimodal_fusion`: 带显式文本位置的 decoder prefix-token 融合。
 - `loss`: causal LM cross entropy、z-loss、distillation。
 - `sampler`: greedy、multinomial、top-k、top-p。
 - `kv_cache`: 当前有 append-only cache 和与布局无关的参考版 KV 量化；paged、sliding cache 后续扩展。
 - `quantizer`: 已有经过测试的对称 INT8 和 packed group-wise INT4 参考实现。
 - `pruner`: 已有局部/全局 magnitude、结构化 channel 和 N:M 半结构化剪枝。
 - `model I/O`: 使用关键字张量字典和通用 logits 提取，可承载文本、图像、音频及多模态 batch。
+- `dataset`: causal 文本数据和确定性的图像条件合成 VLM 数据。
 
 例如新增自己的 Attention：
 
@@ -202,11 +213,33 @@ Level 2 重点指标：
 - decode latency
 - TTFT 和 TPOT
 - tokens/s
+- 文本、模态和整模 token 吞吐
 - peak memory
 - KV cache memory
 - quantization error
 - 有效稀疏率和被选权重的实际存储
 - backend runtime latency
+
+### 多模态架构与训练
+
+`tiny_vlm` 是可以直接运行的 LLaVA 类学习模型，由独立注册组件组合：
+
+```text
+patch vision encoder -> token resampler -> projector -> prefix fusion -> causal LM
+```
+
+语言塔和视觉塔可以分别选择 block、attention、norm、MLP。模型暴露 language、
+vision、projector、resampler、fusion 压缩 scope，并支持冻结视觉塔、只训练 projector
+以及全量端到端训练。
+
+运行 CPU 多模态训练 smoke：
+
+```bash
+python3 -m cli train -c configs/multimodal/tiny_vlm_smoke.yaml
+```
+
+组件契约、batch/output schema、端侧指标和后续架构阶段见
+[多模态架构](docs/MULTIMODAL.zh-CN.md)。
 
 ### 量化与剪枝
 
@@ -332,7 +365,8 @@ v0.7: Sliding Window / Sparse Attention
 v0.8: Benchmark suite
 v0.9: llama.cpp / ONNX backend
 v1.0: edge deployment demo
-v1.1: 多模态模型/数据契约和模态感知压缩
+v1.1: TinyVLM + 多模态组件 registry + 合成训练闭环
+v1.2: cross-attention / Q-Former / 可变分辨率多模态模型
 ```
 
 ## 验证命令
@@ -349,7 +383,7 @@ python3 -m cli train -c configs/smoke.yaml
 
 - [架构设计](docs/ARCHITECTURE.md)
 - [压缩系统设计](docs/COMPRESSION.zh-CN.md)
-- [多模态架构规划](docs/MULTIMODAL.zh-CN.md)
+- [多模态架构](docs/MULTIMODAL.zh-CN.md)
 - [扩展开发指南](docs/EXTENDING.md)
 - [优化器架构](docs/OPTIMIZERS.zh-CN.md)
 - [开源项目接入流程](docs/OPEN_SOURCE_INTEGRATION.md)

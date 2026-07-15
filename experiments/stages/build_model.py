@@ -8,7 +8,16 @@ from experiments.context import ExperimentContext
 from experiments.stage import STAGE_REGISTRY, ExperimentStage
 from experiments.stages.common import selected_name
 from models import MODEL_REGISTRY, build_model
-from modules import ATTENTION_REGISTRY, BLOCK_REGISTRY, MLP_REGISTRY, NORM_REGISTRY
+from modules import (
+    ATTENTION_REGISTRY,
+    BLOCK_REGISTRY,
+    MLP_REGISTRY,
+    MULTIMODAL_FUSION_REGISTRY,
+    MULTIMODAL_PROJECTOR_REGISTRY,
+    MULTIMODAL_RESAMPLER_REGISTRY,
+    NORM_REGISTRY,
+    VISION_ENCODER_REGISTRY,
+)
 
 
 @STAGE_REGISTRY.register(
@@ -43,4 +52,23 @@ class BuildModelStage(ExperimentStage):
         for role, registry, selector, default in nested_components:
             name = selected_name(selector, default)
             if name in registry:
+                context.track_component(role, registry, name)
+
+        selection_provider = getattr(model, "component_selections", None)
+        component_selections = (
+            selection_provider() if callable(selection_provider) else {}
+        )
+        multimodal_registries = {
+            "vision_encoder": VISION_ENCODER_REGISTRY,
+            "multimodal_projector": MULTIMODAL_PROJECTOR_REGISTRY,
+            "multimodal_resampler": MULTIMODAL_RESAMPLER_REGISTRY,
+            "multimodal_fusion": MULTIMODAL_FUSION_REGISTRY,
+            "vision_block": BLOCK_REGISTRY,
+            "vision_attention": ATTENTION_REGISTRY,
+            "vision_norm": NORM_REGISTRY,
+            "vision_mlp": MLP_REGISTRY,
+        }
+        for role, name in component_selections.items():
+            registry = multimodal_registries.get(role)
+            if registry is not None and name in registry:
                 context.track_component(role, registry, name)

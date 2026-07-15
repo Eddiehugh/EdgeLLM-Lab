@@ -28,12 +28,12 @@ Learn one technique -> implement one module -> run one experiment -> write one r
 ```text
 EdgeLLM-Lab/
 ├── core/                    # Registry, component specs, config, provenance, runtime utilities
-├── modules/                 # Level 1: Algorithm packages; each technique has its own file
-├── models/                  # Level 1: TinyGPT, LLaMA-like, DeepSeek-like, future model families
+├── modules/                 # Level 1: Text, vision, and multimodal algorithm packages
+├── models/                  # Level 1: TinyGPT, TinyVLM, and future model families
 ├── training/                # Level 1/2: Losses, optimizers, schedulers, training entry points
 ├── inference/               # Level 1/2: Samplers, KV cache, generation engine
 ├── compression/             # Level 1/2: Quantization, pruning, low-rank compression
-├── data/                    # Tokenizer, dataset, dataloader
+├── data/                    # Text/multimodal datasets, tokenizers, dataloaders
 ├── experiments/             # Level 2: Registered stage pipeline, context, and run artifacts
 ├── execution/               # Provider-neutral job, runtime, artifact, and metadata control plane
 ├── reproduction/            # Level 2: Paper manifests, recipe suites, claim evaluation, reports
@@ -76,8 +76,14 @@ modules/
 │   └── transformer.py
 ├── position/
 │   └── rope.py
-└── moe/
-    └── router.py
+├── moe/
+│   └── router.py
+├── vision/encoder/
+│   └── patch_transformer.py
+└── multimodal/
+    ├── projector/
+    ├── resampler/
+    └── fusion/
 ```
 
 `tests/` is separate from usable modules:
@@ -95,13 +101,18 @@ Current replaceable components:
 - `norm`: LayerNorm and RMSNorm.
 - `block`: Transformer block.
 - `position_encoding`: RoPE.
-- `model`: TinyGPT now; later LLaMA-like, SmolLM-like, MobileLLM-like, and multimodal families.
+- `model`: trainable TinyGPT and TinyVLM reference families.
+- `vision_encoder`: patch embedding plus a configurable bidirectional Transformer vision tower.
+- `multimodal_projector`: linear and two-layer GELU MLP projectors.
+- `multimodal_resampler`: identity and mask-aware adaptive token pooling.
+- `multimodal_fusion`: decoder prefix-token fusion with explicit text positions.
 - `loss`: causal LM cross entropy, z-loss, distillation.
 - `sampler`: greedy, multinomial, top-k, top-p.
 - `kv_cache`: append-only cache plus layout-agnostic reference KV quantization; paged and sliding caches remain planned.
 - `quantizer`: verified symmetric INT8 and packed group-wise INT4 reference implementations.
 - `pruner`: local/global magnitude, structured channel, and N:M semi-structured pruning.
 - `model I/O`: keyword-based tensor dictionaries and generic logits extraction, ready for text, vision, audio, and multimodal batches.
+- `dataset`: causal text data and deterministic image-conditioned synthetic VLM data.
 
 Example: add a custom attention implementation.
 
@@ -206,11 +217,35 @@ Important Level 2 metrics:
 - decode latency
 - TTFT and TPOT
 - tokens/s
+- text, modality, and total model tokens/s
 - peak memory
 - KV cache memory
 - quantization error
 - effective sparsity and selected-weight storage
 - backend runtime latency
+
+### Multimodal architecture and training
+
+`tiny_vlm` is a runnable LLaVA-style learning model composed from independently
+registered components:
+
+```text
+patch vision encoder -> token resampler -> projector -> prefix fusion -> causal LM
+```
+
+The language and vision towers can choose block, attention, norm, and MLP
+implementations independently. Vision, language, projector, resampler, and
+fusion scopes are exposed for compression experiments. Frozen-vision,
+projector-only, and full end-to-end training are supported by model config.
+
+Run the CPU multimodal training smoke:
+
+```bash
+python3 -m cli train -c configs/multimodal/tiny_vlm_smoke.yaml
+```
+
+See [Multimodal Architecture](docs/MULTIMODAL.md) for component contracts,
+batch/output schemas, edge metrics, and the next architecture phases.
 
 ### Quantization and pruning
 
@@ -339,7 +374,8 @@ v0.7: Sliding Window / Sparse Attention
 v0.8: Benchmark suite
 v0.9: llama.cpp / ONNX backend
 v1.0: edge deployment demo
-v1.1: multimodal model/data contracts and modality-aware compression
+v1.1: TinyVLM + multimodal component registries + synthetic training loop
+v1.2: cross-attention / Q-Former / variable-resolution multimodal models
 ```
 
 ## Validation
@@ -356,7 +392,7 @@ python3 -m cli train -c configs/smoke.yaml
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Compression Architecture](docs/COMPRESSION.md)
-- [Multimodal Architecture Plan](docs/MULTIMODAL.md)
+- [Multimodal Architecture](docs/MULTIMODAL.md)
 - [Extension Guide](docs/EXTENDING.md)
 - [Optimizer Architecture](docs/OPTIMIZERS.md)
 - [Open Source Integration Workflow](docs/OPEN_SOURCE_INTEGRATION.md)

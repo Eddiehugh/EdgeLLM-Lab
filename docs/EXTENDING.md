@@ -31,6 +31,34 @@ Keep a simple technique in one file. Promote it to a package when it develops
 multiple kernels, configs, state formats, or converters. Preserve imports in
 the package `__init__.py` during that promotion.
 
+## Add a Multimodal Component
+
+Keep modality encoding, token resampling, projection, and fusion independent.
+For example, a new vision encoder returns the shared feature contract and
+declares its maximum token budget:
+
+```python
+import torch.nn as nn
+
+from modules.multimodal import ModalityFeatures
+from modules.vision.encoder import VISION_ENCODER_REGISTRY
+
+
+@VISION_ENCODER_REGISTRY.register("my_vision_encoder")
+class MyVisionEncoder(nn.Module):
+    max_output_tokens = 64
+
+    def forward(self, pixel_values, image_mask=None):
+        embeddings, token_mask = encode(pixel_values, image_mask)
+        return ModalityFeatures(embeddings, token_mask)
+```
+
+Register projectors under `modules/multimodal/projector/`, resamplers under
+`resampler/`, and fusion methods under `fusion/`. A model family in
+`models/multimodal/` composes them and exposes `component_selections()` plus
+`compression_scopes()`. Do not put image preprocessing in the model or fusion
+logic in the experiment runner.
+
 ## Add a Pipeline Stage
 
 ```python

@@ -33,6 +33,7 @@ def _load_all_builtin_components() -> None:
     from benchmark import load_builtin_benchmarks
     from compression import load_builtin_quantizers
     from compression import load_builtin_pruners
+    from data import load_builtin_datasets
     from experiments.stage import load_builtin_stages
     from models import load_builtin_models
 
@@ -41,6 +42,7 @@ def _load_all_builtin_components() -> None:
     load_builtin_benchmarks()
     load_builtin_quantizers()
     load_builtin_pruners()
+    load_builtin_datasets()
     load_builtin_stages()
 
 
@@ -58,9 +60,13 @@ def _component_registries():
         ATTENTION_REGISTRY,
         BLOCK_REGISTRY,
         MLP_REGISTRY,
+        MULTIMODAL_FUSION_REGISTRY,
+        MULTIMODAL_PROJECTOR_REGISTRY,
+        MULTIMODAL_RESAMPLER_REGISTRY,
         MOE_REGISTRY,
         NORM_REGISTRY,
         POSITION_ENCODING_REGISTRY,
+        VISION_ENCODER_REGISTRY,
     )
     from training import (
         LOSS_REGISTRY,
@@ -76,6 +82,10 @@ def _component_registries():
         "norm": NORM_REGISTRY,
         "block": BLOCK_REGISTRY,
         "position_encoding": POSITION_ENCODING_REGISTRY,
+        "vision_encoder": VISION_ENCODER_REGISTRY,
+        "multimodal_projector": MULTIMODAL_PROJECTOR_REGISTRY,
+        "multimodal_resampler": MULTIMODAL_RESAMPLER_REGISTRY,
+        "multimodal_fusion": MULTIMODAL_FUSION_REGISTRY,
         "model": MODEL_REGISTRY,
         "loss": LOSS_REGISTRY,
         "optimizer": OPTIMIZER_REGISTRY,
